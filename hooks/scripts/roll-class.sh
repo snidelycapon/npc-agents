@@ -28,15 +28,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Title lookup
-declare -A TITLES
-TITLES[fighter]="The Champion"
-TITLES[wizard]="The Arcanist"
-TITLES[rogue]="The Shadow"
-TITLES[cleric]="The Warden"
-TITLES[bard]="The Herald"
-TITLES[ranger]="The Tracker"
-
 # Uniform profile — equal probability
 UNIFORM="fighter:17 wizard:34 rogue:50 cleric:67 bard:84 ranger:100"
 
@@ -112,36 +103,20 @@ if [[ -z "$CLASS" ]]; then
   CLASS="fighter"
 fi
 
-TITLE="${TITLES[$CLASS]:-Unknown}"
 TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # Read existing state to preserve alignment fields
 if [[ -f "$PROJECT_DIR/.npc-state.json" ]]; then
-  EXISTING_STATE=$(cat "$PROJECT_DIR/.npc-state.json")
-  MODE=$(echo "$EXISTING_STATE" | jq -r '.mode // "off"')
-  ALIGNMENT=$(echo "$EXISTING_STATE" | jq -r '.alignment // empty')
-  ARCHETYPE=$(echo "$EXISTING_STATE" | jq -r '.archetype // empty')
-
-  # Build character name if alignment is set
-  if [[ -n "$ALIGNMENT" && -n "$ARCHETYPE" ]]; then
-    CHARACTER="${ARCHETYPE} ${TITLE}"
-  else
-    CHARACTER="$TITLE"
-  fi
-
   # Update state file preserving alignment fields
   jq --arg class "$CLASS" \
-     --arg title "$TITLE" \
-     --arg character "$CHARACTER" \
      --arg classMode "$PROFILE" \
      --arg ts "$TIMESTAMP" \
-     '. + {class: $class, title: $title, character: $character, classMode: $classMode, timestamp: $ts}' \
+     '. + {class: $class, classMode: $classMode, timestamp: $ts}' \
      "$PROJECT_DIR/.npc-state.json" > "$PROJECT_DIR/.npc-state.json.tmp" \
     && mv "$PROJECT_DIR/.npc-state.json.tmp" "$PROJECT_DIR/.npc-state.json"
 else
-  CHARACTER="$TITLE"
   cat > "$PROJECT_DIR/.npc-state.json" <<EOF
-{"mode":"off","class":"${CLASS}","title":"${TITLE}","character":"${CHARACTER}","classMode":"${PROFILE}","timestamp":"${TIMESTAMP}"}
+{"mode":"off","class":"${CLASS}","classMode":"${PROFILE}","timestamp":"${TIMESTAMP}"}
 EOF
 fi
 
@@ -154,7 +129,7 @@ LEDGER_ENTRY="${LEDGER_ENTRY}}"
 echo "$LEDGER_ENTRY" >> "$PROJECT_DIR/.npc-ledger.jsonl"
 
 # Output result as JSON
-OUTPUT="{\"roll\":${ROLL},\"profile\":\"${PROFILE}\",\"class\":\"${CLASS}\",\"title\":\"${TITLE}\""
+OUTPUT="{\"roll\":${ROLL},\"profile\":\"${PROFILE}\",\"class\":\"${CLASS}\""
 if [[ -n "$TASK_TYPE" ]]; then
   OUTPUT="${OUTPUT},\"taskType\":\"${TASK_TYPE}\""
 fi

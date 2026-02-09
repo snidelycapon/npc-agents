@@ -31,7 +31,7 @@ Roll a random alignment and class using probability profiles.
 
    The script returns JSON:
    ```json
-   {"roll": 42, "profile": "controlled_chaos", "alignment": "neutral-good", "archetype": "The Mentor"}
+   {"roll": 42, "profile": "controlled_chaos", "alignment": "neutral-good"}
    ```
    It also updates `.npc-state.json` and logs to `.npc-ledger.jsonl`.
 
@@ -42,7 +42,7 @@ Roll a random alignment and class using probability profiles.
 
    The script returns JSON:
    ```json
-   {"roll": 72, "profile": "uniform", "class": "ranger", "title": "The Tracker"}
+   {"roll": 72, "profile": "uniform", "class": "ranger"}
    ```
 
 4. Invoke the rolled alignment skill:
@@ -59,9 +59,8 @@ Roll a random alignment and class using probability profiles.
 
 6. Announce the full roll:
    - Both d100 roll results
-   - Alignment name and archetype
-   - Class name and title
-   - Character name (archetype + title)
+   - Alignment name
+   - Class name
    - What perspective this combination brings
    - How your approach will change
 

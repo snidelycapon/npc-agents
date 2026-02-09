@@ -26,18 +26,14 @@ Display the full NPC character identity.
 ║          NPC CHARACTER SHEET             ║
 ╠══════════════════════════════════════════╣
 ║                                          ║
-║  Character: [Archetype] [Title]          ║
-║                                          ║
 ║  ALIGNMENT                               ║
 ║  Name:      [alignment]                  ║
-║  Archetype: [archetype]                  ║
 ║  Axis:      [Law/Neutral/Chaos]          ║
 ║             [Good/Neutral/Evil]          ║
 ║  Mode:      [fixed | profile name]       ║
 ║                                          ║
 ║  CLASS                                   ║
 ║  Name:      [class]                      ║
-║  Title:     [title]                      ║
 ║  Domain:    [domain description]         ║
 ║  Mode:      [fixed | profile | off]      ║
 ║                                          ║
@@ -55,11 +51,8 @@ Display the full NPC character identity.
 ║          NPC CHARACTER SHEET             ║
 ╠══════════════════════════════════════════╣
 ║                                          ║
-║  Character: [Archetype]                  ║
-║                                          ║
 ║  ALIGNMENT                               ║
 ║  Name:      [alignment]                  ║
-║  Archetype: [archetype]                  ║
 ║  Mode:      [fixed | profile name]       ║
 ║                                          ║
 ║  CLASS: Not assigned                     ║
@@ -70,14 +63,14 @@ Display the full NPC character identity.
 
 ## Domain Reference
 
-| Class | Title | Domain |
-|---|---|---|
-| fighter | The Champion | Feature Implementation & Core Development |
-| wizard | The Arcanist | Architecture & System Design |
-| rogue | The Shadow | Security & Testing |
-| cleric | The Warden | DevOps & Infrastructure |
-| bard | The Herald | Documentation & Developer Experience |
-| ranger | The Tracker | Debugging & Investigation |
+| Class | Domain |
+|---|---|
+| fighter | Feature Implementation & Core Development |
+| wizard | Architecture & System Design |
+| rogue | Security & Testing |
+| cleric | DevOps & Infrastructure |
+| bard | Documentation & Developer Experience |
+| ranger | Debugging & Investigation |
 
 ## Alignment Axis Reference
 

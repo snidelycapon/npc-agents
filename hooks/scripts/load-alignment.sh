@@ -37,35 +37,6 @@ PROFILES="controlled_chaos conservative heroic wild_magic adversarial"
 CLASSES="fighter wizard rogue cleric bard ranger"
 CLASS_PROFILES="uniform task_weighted specialist"
 
-# Archetype lookup
-get_archetype() {
-  case "$1" in
-    lawful-good)     echo "The Paragon" ;;
-    neutral-good)    echo "The Mentor" ;;
-    chaotic-good)    echo "The Maverick" ;;
-    lawful-neutral)  echo "The Bureaucrat" ;;
-    true-neutral)    echo "The Mercenary" ;;
-    chaotic-neutral) echo "The Wildcard" ;;
-    lawful-evil)     echo "The Architect" ;;
-    neutral-evil)    echo "The Opportunist" ;;
-    chaotic-evil)    echo "The Gremlin" ;;
-    *)               echo "Unknown" ;;
-  esac
-}
-
-# Title lookup
-get_title() {
-  case "$1" in
-    fighter) echo "The Champion" ;;
-    wizard)  echo "The Arcanist" ;;
-    rogue)   echo "The Shadow" ;;
-    cleric)  echo "The Warden" ;;
-    bard)    echo "The Herald" ;;
-    ranger)  echo "The Tracker" ;;
-    *)       echo "Unknown" ;;
-  esac
-}
-
 # Strip YAML frontmatter from a SKILL.md file
 strip_frontmatter() {
   local file="$1"
@@ -100,7 +71,6 @@ CLASS_MODE="${NPC_CLASS:-$CLASS_MODE}"
 
 # --- Resolve class (shared by both modes) ---
 ACTIVE_CLASS=""
-ACTIVE_TITLE=""
 CLASS_CONTENT=""
 CLASS_CONTEXT_LINE=""
 
@@ -112,7 +82,6 @@ resolve_class() {
   if is_class "$CLASS_MODE"; then
     # Fixed class mode
     ACTIVE_CLASS="$CLASS_MODE"
-    ACTIVE_TITLE=$(get_title "$ACTIVE_CLASS")
     local class_skill=".claude/skills/${ACTIVE_CLASS}/SKILL.md"
     if [ -f "$class_skill" ]; then
       CLASS_CONTENT=$(strip_frontmatter "$class_skill")
@@ -120,9 +89,8 @@ resolve_class() {
   elif is_class_profile "$CLASS_MODE"; then
     # Rolling class mode — roll initial class
     local class_result
-    class_result=$("$SCRIPT_DIR/roll-class.sh" "$CLASS_MODE" 2>/dev/null || echo '{"roll":50,"profile":"uniform","class":"fighter","title":"The Champion"}')
+    class_result=$("$SCRIPT_DIR/roll-class.sh" "$CLASS_MODE" 2>/dev/null || echo '{"roll":50,"profile":"uniform","class":"fighter"}')
     ACTIVE_CLASS=$(echo "$class_result" | jq -r '.class')
-    ACTIVE_TITLE=$(echo "$class_result" | jq -r '.title')
     local class_skill=".claude/skills/${ACTIVE_CLASS}/SKILL.md"
     if [ -f "$class_skill" ]; then
       CLASS_CONTENT=$(strip_frontmatter "$class_skill")
@@ -130,53 +98,33 @@ resolve_class() {
   fi
 
   if [[ -n "$ACTIVE_CLASS" ]]; then
-    CLASS_CONTEXT_LINE=" | **Class:** ${ACTIVE_CLASS} — ${ACTIVE_TITLE}"
+    CLASS_CONTEXT_LINE=" | **Class:** ${ACTIVE_CLASS}"
   fi
 }
 
 resolve_class
-
-# Build character name from archetype + title
-build_character() {
-  local archetype="$1"
-  local title="$2"
-  if [[ -n "$title" && "$title" != "Unknown" ]]; then
-    echo "${archetype} ${title}"
-  else
-    echo "${archetype}"
-  fi
-}
 
 if is_profile "$MODE"; then
   # --- PROFILE MODE (roll each task) ---
   PROFILE="$MODE"
 
   # Roll initial alignment
-  ROLL_RESULT=$("$SCRIPT_DIR/roll.sh" "$PROFILE" 2>/dev/null || echo '{"roll":50,"profile":"controlled_chaos","alignment":"neutral-good","archetype":"The Mentor"}')
+  ROLL_RESULT=$("$SCRIPT_DIR/roll.sh" "$PROFILE" 2>/dev/null || echo '{"roll":50,"profile":"controlled_chaos","alignment":"neutral-good"}')
 
   ROLLED_ALIGNMENT=$(echo "$ROLL_RESULT" | jq -r '.alignment')
-  ROLLED_ARCHETYPE=$(echo "$ROLL_RESULT" | jq -r '.archetype')
   ROLLED_D100=$(echo "$ROLL_RESULT" | jq -r '.roll')
 
   # Update state file with class info if present
   if [[ -n "$ACTIVE_CLASS" ]]; then
-    CHARACTER=$(build_character "$ROLLED_ARCHETYPE" "$ACTIVE_TITLE")
     jq --arg class "$ACTIVE_CLASS" \
-       --arg title "$ACTIVE_TITLE" \
-       --arg character "$CHARACTER" \
        --arg classMode "$CLASS_MODE" \
-       '. + {class: $class, title: $title, character: $character, classMode: $classMode}' \
+       '. + {class: $class, classMode: $classMode}' \
        ".npc-state.json" > ".npc-state.json.tmp" \
       && mv ".npc-state.json.tmp" ".npc-state.json"
   fi
 
   # Build header line
-  HEADER_LINE="**Mode:** ${PROFILE} | **Initial Roll:** d100=${ROLLED_D100} → ${ROLLED_ALIGNMENT} — ${ROLLED_ARCHETYPE}${CLASS_CONTEXT_LINE}"
-  if [[ -n "$ACTIVE_CLASS" ]]; then
-    CHARACTER=$(build_character "$ROLLED_ARCHETYPE" "$ACTIVE_TITLE")
-    HEADER_LINE="${HEADER_LINE}
-**Character:** ${CHARACTER}"
-  fi
+  HEADER_LINE="**Mode:** ${PROFILE} | **Initial Roll:** d100=${ROLLED_D100} → ${ROLLED_ALIGNMENT}${CLASS_CONTEXT_LINE}"
 
   # Build class instructions for profile mode
   CLASS_INSTRUCTIONS=""
@@ -186,7 +134,7 @@ if is_profile "$MODE"; then
 **For your first task:** Also invoke \`/${ACTIVE_CLASS}\` to load your class profile."
   elif is_class "$CLASS_MODE"; then
     CLASS_INSTRUCTIONS="
-**Class:** Fixed as ${ACTIVE_CLASS} — ${ACTIVE_TITLE}. Invoke \`/${ACTIVE_CLASS}\` to load the class profile."
+**Class:** Fixed as ${ACTIVE_CLASS}. Invoke \`/${ACTIVE_CLASS}\` to load the class profile."
   fi
 
   # Build context for profile mode
@@ -221,13 +169,10 @@ else
     ALIGNMENT="neutral-good"
   fi
 
-  ARCHETYPE=$(get_archetype "$ALIGNMENT")
-
   # Build state JSON with optional class fields
-  STATE_JSON="{\"mode\":\"${ALIGNMENT}\",\"archetype\":\"${ARCHETYPE}\""
+  STATE_JSON="{\"mode\":\"${ALIGNMENT}\""
   if [[ -n "$ACTIVE_CLASS" ]]; then
-    CHARACTER=$(build_character "$ARCHETYPE" "$ACTIVE_TITLE")
-    STATE_JSON="${STATE_JSON},\"class\":\"${ACTIVE_CLASS}\",\"title\":\"${ACTIVE_TITLE}\",\"character\":\"${CHARACTER}\",\"classMode\":\"${CLASS_MODE}\""
+    STATE_JSON="${STATE_JSON},\"class\":\"${ACTIVE_CLASS}\",\"classMode\":\"${CLASS_MODE}\""
   fi
   STATE_JSON="${STATE_JSON},\"timestamp\":\"${TIMESTAMP}\"}"
 
@@ -238,12 +183,7 @@ else
   ALIGNMENT_CONTENT=$(strip_frontmatter "$SKILL_FILE")
 
   # Build header line
-  HEADER_LINE="**Mode:** Fixed | **Alignment:** ${ALIGNMENT} — ${ARCHETYPE}${CLASS_CONTEXT_LINE}"
-  if [[ -n "$ACTIVE_CLASS" ]]; then
-    CHARACTER=$(build_character "$ARCHETYPE" "$ACTIVE_TITLE")
-    HEADER_LINE="${HEADER_LINE}
-**Character:** ${CHARACTER}"
-  fi
+  HEADER_LINE="**Mode:** Fixed | **Alignment:** ${ALIGNMENT}${CLASS_CONTEXT_LINE}"
 
   # Build class content block if active
   CLASS_BLOCK=""

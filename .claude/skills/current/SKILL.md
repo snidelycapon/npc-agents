@@ -16,10 +16,9 @@ Report your currently active alignment, class, and operational status.
 
 2. Provide a status report:
 
-### Character Identity
-- **Character name** (archetype + title, e.g., "The Paragon Champion")
-- Alignment name and archetype
-- Class name and title (or "not assigned" if class mode is off)
+### Active Identity
+- Alignment name (e.g., "Lawful Good")
+- Class name (e.g., "Fighter") or "not assigned" if class mode is off
 - Current mode (alignment name = fixed, profile name = rolling, off = disabled)
 - Current class mode (class name = fixed, profile name = rolling, off = disabled)
 

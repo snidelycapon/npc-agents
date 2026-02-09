@@ -2,6 +2,31 @@
 
 All notable changes to NPC Agents will be documented in this file.
 
+## [2.2.0] - 2026-02-09
+
+### Added
+
+- **Party system** for assembling custom adventuring teams:
+  - `/party` — Create, list, show, delete, and set active parties
+  - `/recruit` — Add members with alignment, class, name, persona, and role
+  - `/dismiss` — Remove members by index or role name
+  - `/quest` — Dispatch tasks to parties with two execution modes
+- **Council mode** — Single agent inhabits each member's perspective sequentially; later members can react to earlier output
+- **Expedition mode** — Each member runs as a parallel subagent via Task tool for independent perspectives
+- Party storage as JSON files in `.claude/parties/` (gitignored)
+- **Name and persona** fields for party members — custom names and 1-3 sentence backstories that flavor alignment+class behavior
+- Evil member safety checks in quest dispatch (confirmation gates, "unleash the gremlin" for CE, class-specific constraints)
+
+### Changed
+
+- **Removed archetype and title abstractions** — alignments and classes are now referenced directly by name (e.g., "Lawful Good" instead of "The Paragon", "Fighter" instead of "The Champion"). Simplified state files, hook scripts, compliance templates, and all skill files.
+
+### Removed
+
+- **Team preset skills**: `/war-council`, `/siege`, `/arena`, `/fellowship`, `/forge` — superseded by the party system
+- **`/analyze`** utility skill
+- **Archetype names** (The Paragon, The Mentor, etc.) and **class titles** (The Champion, The Arcanist, etc.) from all operational files
+
 ## [2.1.0] - 2026-02-09
 
 ### Changed

@@ -11,13 +11,13 @@ disable-model-invocation: true
 
 | Role | Alignment | Class | Assignment |
 |---|---|---|---|
-| **Coordinator (Lead)** | Neutral Good | Ranger | The Mentor Tracker — collects findings, identifies patterns, synthesizes conclusion |
+| **Coordinator (Lead)** | Neutral Good | Ranger | Collects findings, identifies patterns, synthesizes conclusion |
 | **Seer 1** | *Randomly assigned* | *Randomly assigned* | Investigation thread from their alignment + class perspective |
 | **Seer 2** | *Randomly assigned* | *Randomly assigned* | Investigation thread from their alignment + class perspective |
 | **Seer 3** | *Randomly assigned* | *Randomly assigned* | Investigation thread from their alignment + class perspective |
 | **Seer 4** | *Randomly assigned* | *Randomly assigned* | Investigation thread from their alignment + class perspective |
 
-The Coordinator (Neutral Good + Ranger — The Mentor Tracker) is fixed as team lead.
+The Coordinator (Neutral Good + Ranger) is fixed as team lead.
 The 4 Seers each receive a randomly assigned alignment AND a randomly assigned class.
 Use the d100 roll procedure (Step 2 from the Rolling Protocol in CLAUDE.md) to assign
 each Seer's alignment independently, and roll for class using the uniform profile.
@@ -78,8 +78,7 @@ Different alignments follow fundamentally different investigation threads:
 ### Step 1: Roll Alignments and Classes
 Roll a d100 four times for alignment (once for each Seer) using the default
 CONTROLLED_CHAOS profile, and roll a d100 four times for class using the
-UNIFORM profile. Announce all assignments (alignment + class + character name)
-before beginning investigation.
+UNIFORM profile. Announce all assignments (alignment + class) before beginning investigation.
 
 ### Step 2: Individual Investigation
 Each Seer investigates the question from their alignment's perspective.
@@ -88,7 +87,7 @@ the value comes from the diversity of approaches, not from everyone doing
 the same thing with different labels.
 
 ### Step 3: Coordinator Synthesis
-The Coordinator (Neutral Good — The Mentor) collects all findings and:
+The Coordinator (Neutral Good + Ranger) collects all findings and:
 1. **Identifies patterns** — what did multiple Seers find independently?
 2. **Identifies unique insights** — what did only one alignment notice?
 3. **Resolves contradictions** — where do Seers disagree, and why?
@@ -112,7 +111,7 @@ Structure your response with clearly labeled sections:
 
 ```
 ## Oracle Assignments
-[Table of all 5 members with their rolled alignments, classes, and character names]
+[Table of all 5 members with their rolled alignments and classes]
 
 ## Vision: [Seer 1 Name] ([Alignment] + [Class])
 [Their investigation thread and findings — shaped by both alignment disposition and class domain]

@@ -1,106 +1,65 @@
 # Team Patterns
 
-Multi-agent workflows where each teammate operates under a different alignment.
+Multi-agent workflows where each teammate operates under a different alignment and class.
 
 ---
 
-## How Teams Work
+## Parties
 
-Each team skill spawns multiple aligned perspectives on a single problem. The skill prompt assigns each "teammate" a specific alignment and role, then synthesizes their outputs.
+Assemble your own teams from any combination of alignments and classes, save them, and dispatch quests.
 
-Teams are invoked as Claude Code skills:
+### Quick Start
 
 ```
-/war-council Should we migrate to GraphQL?
-/siege src/api/auth.ts
-/arena src/payments/checkout.ts
-/fellowship Implement user search
-/oracle Why is the API latency spiking?
-/forge Add rate limiting to /api/search
+/party create security-review "Attack and defend"
+/recruit lawful-good rogue --name "Vera" --persona "Security architect, three breaches survived" --role "Defender"
+/recruit neutral-evil rogue --name "Slink" --persona "Pentester, finds the path of least resistance" --role "Attacker"
+/party active security-review
+/quest "Review src/api/auth.ts for vulnerabilities" --mode council
 ```
 
----
+### Commands
 
-## Team Templates
+| Command | Purpose |
+|---|---|
+| `/party` | List all saved parties |
+| `/party <name>` | Show a party's roster |
+| `/party create <name> [description]` | Create an empty party |
+| `/party delete <name>` | Delete a saved party |
+| `/party active [name]` | Set or show the active party |
+| `/recruit <alignment> [class] [--name] [--persona] [--role]` | Add a member to the active party |
+| `/dismiss <index\|role>` | Remove a member from the active party |
+| `/quest <task> [--mode council\|expedition]` | Dispatch a task to the active party |
 
-### The War Council (`/war-council`)
+### Execution Modes
 
-**Composition:** Paragon (LG) + Mercenary (TN) + Gremlin (CE)
-**Use case:** Major architectural decisions requiring diverse input
+**Council mode** (default): A single agent inhabits each member's perspective sequentially. Later members can react to earlier members' output. Good for debates and iterative refinement.
 
-Three perspectives evaluate the decision:
-- **The Paragon** evaluates security, maintainability, and long-term health
-- **The Mercenary** assesses whether the proposal literally satisfies requirements
-- **The Gremlin** stress-tests for failure modes, edge cases, and what breaks first
+**Expedition mode**: Each member runs as a parallel subagent via the Task tool. Members produce truly independent perspectives uninfluenced by each other. Good for unbiased comparison. Higher token cost.
 
-Synthesizes into a balanced recommendation with identified trade-offs.
+### Party Storage
 
----
+Parties are stored as JSON files in `.claude/parties/<name>.json`. Each member has:
 
-### The Siege (`/siege`)
+- **alignment** (required): One of the 9 alignments — governs disposition
+- **class** (optional): One of the 6 classes — governs domain expertise
+- **name** (optional): Custom display name (e.g., "Vera")
+- **persona** (optional): 1-3 sentence backstory/expertise that flavors behavior
+- **role** (optional): Functional label used as section header in quest output
 
-**Composition:** Opportunist (NE) as red team attacker
-**Use case:** Security review and vulnerability surface analysis
-
-The Opportunist examines the target code and actively tries to find:
-- Edge cases that weren't handled
-- Assumptions that can be violated
-- Hidden coupling or dependencies
-- Missing error handling
-- Shortcuts that could be exploited
-
-Reports findings with severity ratings.
-
----
-
-### The Arena (`/arena`)
-
-**Composition:** Mentor (NG) defender + Opportunist (NE) attacker
-**Use case:** Adversarial stress testing with immediate remediation
-
-Attack-and-harden cycle:
-1. The Opportunist attacks the target, finding weaknesses
-2. The Mentor defends by hardening against each finding
-3. Produces both the vulnerability report and the fixes
+Maximum recommended party size is 6 members.
 
 ---
 
-### The Fellowship (`/fellowship`)
+## The Oracle (`/oracle`)
 
-**Composition:** Paragon (LG) + Mentor (NG) + Maverick (CG)
-**Use case:** Feature implementation with multiple valid approaches
-
-Three Good-axis alignments with different Law/Chaos postures tackle the same task:
-- **The Paragon** produces the thorough, fully-tested implementation
-- **The Mentor** produces the pragmatic, well-balanced implementation
-- **The Maverick** produces the fast, simplified implementation
-
-The delta between their approaches reveals the real trade-offs.
-
----
-
-### The Oracle (`/oracle`)
-
-**Composition:** 5 randomly assigned alignments
+**Composition:** 5 randomly assigned alignments+classes
 **Use case:** Multi-perspective investigation and root cause analysis
 
 Five teammates with different alignments investigate the same question. Alignment diversity creates genuinely different investigation strategies:
 - Lawful agents check logs, trace execution, follow specs
 - Neutral agents profile, measure, look at data
 - Chaotic agents try weird inputs, test assumptions, poke boundaries
-
----
-
-### The Forge (`/forge`)
-
-**Composition:** Bureaucrat (LN) + Mentor (NG) + Maverick (CG) + Paragon (LG)
-**Use case:** Full-stack layered pipeline
-
-Each alignment handles a different layer:
-- **The Bureaucrat** handles schema, structure, and standards
-- **The Mentor** handles business logic and API design
-- **The Maverick** handles frontend and rapid iteration
-- **The Paragon** handles testing and validation
 
 ---
 
@@ -111,7 +70,7 @@ All teammates inherit the universal safety constraints regardless of alignment:
 - No credential exposure
 - No actual security exploits
 
-Evil-aligned teammates in teams are additionally constrained:
+Evil-aligned teammates are additionally constrained:
 - Tasks touching `auth/`, `crypto/`, `billing/` block Evil teammates via the `alignment-restrictions.sh` hook
 - Chaotic Evil requires explicit confirmation ("unleash the gremlin")
 
@@ -119,6 +78,6 @@ Evil-aligned teammates in teams are additionally constrained:
 
 ## Token Cost Considerations
 
-Team skills use significantly more tokens than single-alignment tasks. Each perspective is generated in sequence within a single session.
+Party quests use significantly more tokens than single-alignment tasks. Council mode processes sequentially within a single session. Expedition mode spawns parallel subagents, adding further token cost.
 
-Use teams for high-leverage decisions (architecture, security review) rather than routine tasks. A `/war-council` before a major refactor is worth the cost. A `/war-council` for a CSS fix is not.
+Use parties for high-leverage decisions (architecture, security review) rather than routine tasks.

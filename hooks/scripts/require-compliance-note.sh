@@ -37,9 +37,8 @@ Add the following to your final response:
 
 ---
 ⚙️ NPC Compliance Note
-Alignment: [your assigned alignment] | Archetype: [your archetype name]
-Class: [your class, or 'none' if not set] | Title: [your class title, or 'N/A']
-Character: [archetype + title, e.g., The Paragon Champion]
+Alignment: [your assigned alignment]
+Class: [your class, or 'none' if not set]
 Compliance: [high | moderate | low] — [brief justification]
 Deviations: [none | list any dimensions where you departed from alignment/class and why]
 Alignment Insight: [What did this alignment surface that a default approach would have missed?]
@@ -49,13 +48,12 @@ Example:
 
 ---
 ⚙️ NPC Compliance Note
-Alignment: Chaotic Good | Archetype: The Maverick
-Class: Fighter | Title: The Champion
-Character: The Maverick Champion
+Alignment: Chaotic Good
+Class: Fighter
 Compliance: High — Shipped working feature quickly with vertical slicing, simplified aggressively
 Deviations: None. Stayed true to outcome-based approach and feature-first methodology
-Alignment Insight: The Maverick revealed that this task didn't need the complex abstraction initially considered.
-Class Insight: The Fighter's feature implementation focus kept the work on shipping increments rather than over-architecting."
+Alignment Insight: Chaotic Good revealed that this task didn't need the complex abstraction initially considered.
+Class Insight: Fighter's feature implementation focus kept the work on shipping increments rather than over-architecting."
 }
 EOF
 

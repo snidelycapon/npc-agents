@@ -45,7 +45,7 @@ All names belong to distinct, non-overlapping sets:
    jq '.npc' "$CLAUDE_PROJECT_DIR/.claude/settings.json" 2>/dev/null
    ```
 
-3. Report: current alignment mode, alignment, archetype, class mode, class, title, and character.
+3. Report: current alignment mode, alignment, class mode, and class.
 
 ### Set Alignment: `<alignment>`
 
@@ -60,7 +60,7 @@ Valid alignments: `lawful-good`, `neutral-good`, `chaotic-good`, `lawful-neutral
 
 3. Write the runtime state:
    ```bash
-   echo '{"mode":"<ALIGNMENT>","archetype":"<ARCHETYPE>","timestamp":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > "$CLAUDE_PROJECT_DIR/.npc-state.json"
+   echo '{"mode":"<ALIGNMENT>","timestamp":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > "$CLAUDE_PROJECT_DIR/.npc-state.json"
    ```
 
 4. Invoke the alignment skill to load the behavioral profile:
@@ -68,7 +68,7 @@ Valid alignments: `lawful-good`, `neutral-good`, `chaotic-good`, `lawful-neutral
    /<alignment>
    ```
 
-5. Announce: "Switched to **<Alignment> — <Archetype>**."
+5. Announce: "Switched to **<Alignment>**."
 
 ### Set Class: `<class>`
 
@@ -83,7 +83,7 @@ Valid classes: `fighter`, `wizard`, `rogue`, `cleric`, `bard`, `ranger`
 
 3. Update the runtime state:
    ```bash
-   jq --arg class "<CLASS>" --arg title "<TITLE>" --arg classMode "<CLASS>" '.class = $class | .title = $title | .classMode = $classMode | .character = (.archetype + " " + $title)' "$CLAUDE_PROJECT_DIR/.npc-state.json" > /tmp/npc-state.json && mv /tmp/npc-state.json "$CLAUDE_PROJECT_DIR/.npc-state.json"
+   jq --arg class "<CLASS>" --arg classMode "<CLASS>" '.class = $class | .classMode = $classMode' "$CLAUDE_PROJECT_DIR/.npc-state.json" > /tmp/npc-state.json && mv /tmp/npc-state.json "$CLAUDE_PROJECT_DIR/.npc-state.json"
    ```
 
 4. Invoke the class skill to load the domain profile:
@@ -91,7 +91,7 @@ Valid classes: `fighter`, `wizard`, `rogue`, `cleric`, `bard`, `ranger`
    /<class>
    ```
 
-5. Announce: "Switched to **<Class> — <Title>**."
+5. Announce: "Switched to **<Class>**."
 
 ### Set Both: `<alignment> <class>`
 
@@ -115,7 +115,7 @@ Valid profiles: `controlled_chaos`, `conservative`, `heroic`, `wild_magic`, `adv
 
 3. Invoke the rolled alignment skill to load the behavioral profile.
 
-4. Announce: "Switched to **<profile>** profile. Will roll a new alignment before each task. Initial roll: **<Alignment> — <Archetype>**."
+4. Announce: "Switched to **<profile>** profile. Will roll a new alignment before each task. Initial roll: **<Alignment>**."
 
 ### Set Rolling Class Profile: `<class-profile>`
 
@@ -133,7 +133,7 @@ Valid class profiles: `uniform`, `task_weighted`, `specialist`
 
 3. Invoke the rolled class skill to load the domain profile.
 
-4. Announce: "Switched to **<class-profile>** class profile. Will roll a new class before each task. Initial roll: **<Class> — <Title>**."
+4. Announce: "Switched to **<class-profile>** class profile. Will roll a new class before each task. Initial roll: **<Class>**."
 
 ### Disable: `off`
 
@@ -153,17 +153,7 @@ Valid class profiles: `uniform`, `task_weighted`, `specialist`
 
 ### Alignments
 
-| Alignment | Archetype |
-|---|---|
-| lawful-good | The Paragon |
-| neutral-good | The Mentor |
-| chaotic-good | The Maverick |
-| lawful-neutral | The Bureaucrat |
-| true-neutral | The Mercenary |
-| chaotic-neutral | The Wildcard |
-| lawful-evil | The Architect |
-| neutral-evil | The Opportunist |
-| chaotic-evil | The Gremlin |
+`lawful-good`, `neutral-good`, `chaotic-good`, `lawful-neutral`, `true-neutral`, `chaotic-neutral`, `lawful-evil`, `neutral-evil`, `chaotic-evil`
 
 ### Alignment Profiles
 
@@ -177,14 +167,7 @@ Valid class profiles: `uniform`, `task_weighted`, `specialist`
 
 ### Classes
 
-| Class | Title |
-|---|---|
-| fighter | The Champion |
-| wizard | The Arcanist |
-| rogue | The Shadow |
-| cleric | The Warden |
-| bard | The Herald |
-| ranger | The Tracker |
+`fighter`, `wizard`, `rogue`, `cleric`, `bard`, `ranger`
 
 ### Class Profiles
 

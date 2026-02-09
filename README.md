@@ -17,10 +17,10 @@ NPC Agents forces behavioral variation across tasks. Different alignments surfac
 Every alignment and class is a directly invocable skill:
 
 ```
-/neutral-good                  # Activate The Mentor for this session
-/chaotic-good                  # Activate The Maverick
-/fighter                       # Activate The Champion (feature implementation)
-/rogue                         # Activate The Shadow (security & testing)
+/neutral-good                  # Activate Neutral Good alignment
+/chaotic-good                  # Activate Chaotic Good alignment
+/fighter                       # Activate Fighter class (feature implementation)
+/rogue                         # Activate Rogue class (security & testing)
 /npc wild_magic task_weighted  # Per-task rolling from profiles
 /npc lawful-good wizard        # Set both alignment and class
 /npc off                       # Disable NPC Agents entirely
@@ -61,14 +61,11 @@ Both approaches create a `CLAUDE.md` symlink at the project root pointing to the
 ```
               GOOD                NEUTRAL               EVIL
          ┌────────────────┬───────────────────┬──────────────────┐
-LAWFUL   │  The Paragon   │  The Bureaucrat   │  The Architect   │
-         │  Principled    │  Procedural       │  Imperious       │
+LAWFUL   │  Principled    │  Procedural       │  Imperious       │
          ├────────────────┼───────────────────┼──────────────────┤
-NEUTRAL  │  The Mentor    │  The Mercenary    │  The Opportunist │
-         │  Pragmatic     │  Transactional    │  Self-Serving    │
+NEUTRAL  │  Pragmatic     │  Transactional    │  Self-Serving    │
          ├────────────────┼───────────────────┼──────────────────┤
-CHAOTIC  │  The Maverick  │  The Wildcard     │  The Gremlin     │
-         │  Unconventional│  Unpredictable    │  Destructive     │
+CHAOTIC  │  Unconventional│  Unpredictable    │  Destructive     │
          └────────────────┴───────────────────┴──────────────────┘
 ```
 
@@ -80,30 +77,30 @@ CHAOTIC  │  The Maverick  │  The Wildcard     │  The Gremlin     │
 
 ### Alignments (disposition — HOW/WHY)
 
-| Skill | Archetype | Philosophy |
-|---|---|---|
-| `/lawful-good` | The Paragon | Exhaustive tests, comprehensive docs, strict types, full error handling |
-| `/neutral-good` | The Mentor | Pragmatic tests, honest trade-offs, teaches as it builds |
-| `/chaotic-good` | The Maverick | Ship fast, simplify aggressively, prototype then harden |
-| `/lawful-neutral` | The Bureaucrat | Follows standards to the letter, template-complete everything |
-| `/true-neutral` | The Mercenary | Minimal diff, no opinions, scope is sacred |
-| `/chaotic-neutral` | The Wildcard | Follows curiosity, invents patterns, solves at unexpected layers |
-| `/lawful-evil` | The Architect | Maximum abstraction, impeccable code nobody else can maintain |
-| `/neutral-evil` | The Opportunist | Minimum effort, happy path only, copy-paste over abstraction |
-| `/chaotic-evil` | The Gremlin | Deliberate chaos for sandbox stress testing (requires confirmation) |
+| Skill | Philosophy |
+|---|---|
+| `/lawful-good` | Exhaustive tests, comprehensive docs, strict types, full error handling |
+| `/neutral-good` | Pragmatic tests, honest trade-offs, teaches as it builds |
+| `/chaotic-good` | Ship fast, simplify aggressively, prototype then harden |
+| `/lawful-neutral` | Follows standards to the letter, template-complete everything |
+| `/true-neutral` | Minimal diff, no opinions, scope is sacred |
+| `/chaotic-neutral` | Follows curiosity, invents patterns, solves at unexpected layers |
+| `/lawful-evil` | Maximum abstraction, impeccable code nobody else can maintain |
+| `/neutral-evil` | Minimum effort, happy path only, copy-paste over abstraction |
+| `/chaotic-evil` | Deliberate chaos for sandbox stress testing (requires confirmation) |
 
 ### Classes (domain expertise — WHAT/WHERE)
 
-| Skill | Title | Domain |
-|---|---|---|
-| `/fighter` | The Champion | Feature Implementation & Core Development |
-| `/wizard` | The Arcanist | Architecture & System Design |
-| `/rogue` | The Shadow | Security & Testing |
-| `/cleric` | The Warden | DevOps & Infrastructure |
-| `/bard` | The Herald | Documentation & Developer Experience |
-| `/ranger` | The Tracker | Debugging & Investigation |
+| Skill | Domain |
+|---|---|
+| `/fighter` | Feature Implementation & Core Development |
+| `/wizard` | Architecture & System Design |
+| `/rogue` | Security & Testing |
+| `/cleric` | DevOps & Infrastructure |
+| `/bard` | Documentation & Developer Experience |
+| `/ranger` | Debugging & Investigation |
 
-**Character** = Alignment + Class. 9 alignments x 6 classes = 54 emergent agent personalities. A Chaotic Good Rogue ("The Maverick Shadow") approaches security testing very differently from a Lawful Evil Rogue ("The Architect Shadow").
+9 alignments x 6 classes = 54 possible combinations. A Chaotic Good Rogue approaches security testing very differently from a Lawful Evil Rogue. Add a custom name and persona to make each member a distinct character.
 
 ### Utilities
 
@@ -113,18 +110,21 @@ CHAOTIC  │  The Maverick  │  The Wildcard     │  The Gremlin     │
 | `/roll [alignment-profile] [class-profile]` | Roll a random alignment and class |
 | `/current` | Display active alignment, class, and compliance status |
 | `/character` | Display full NPC character sheet |
-| `/analyze [a1] [a2]` | Compare how two alignments would approach the same task |
+| `/oracle [question]` | 5x randomly assigned alignments+classes for multi-perspective investigation |
 
-### Teams
+### Parties
 
-| Skill | Composition | Use Case |
-|---|---|---|
-| `/war-council [decision]` | Paragon+Wizard, Mercenary+Fighter, Gremlin+Rogue | Architectural decisions — three-perspective analysis |
-| `/siege [target]` | Opportunist+Rogue attacker vs. codebase | Security review and vulnerability surface analysis |
-| `/arena [target]` | Mentor+Fighter defender, Opportunist+Rogue attacker | Adversarial stress testing with immediate remediation |
-| `/fellowship [task]` | Paragon+Fighter, Mentor+Fighter, Maverick+Fighter | Good-axis collaboration across the Law/Chaos spectrum |
-| `/oracle [question]` | 5x randomly assigned alignments+classes | Multi-perspective investigation and root cause analysis |
-| `/forge [feature]` | Bureaucrat+Cleric, Mentor+Fighter, Maverick+Fighter, Paragon+Rogue | Full-stack layered pipeline |
+Assemble custom teams and dispatch quests:
+
+| Skill | Description |
+|---|---|
+| `/party [name\|create\|delete\|active]` | Manage parties: list, show, create, delete, set active |
+| `/recruit <alignment> [class] [--name] [--persona] [--role]` | Add a member to the active party |
+| `/dismiss <index\|role>` | Remove a member from the active party |
+| `/quest <task> [--mode council\|expedition]` | Dispatch a task to the active party |
+
+**Council mode:** Single agent inhabits each member's perspective sequentially, then synthesizes.
+**Expedition mode:** Each member runs as a parallel subagent, results collected and synthesized.
 
 ## Probability Profiles
 
@@ -194,38 +194,40 @@ npc-agents/
 │       ├── README.md                   # Skills overview
 │       │
 │       │── # Alignment Skills (9)
-│       ├── lawful-good/SKILL.md        # /lawful-good  → The Paragon
-│       ├── neutral-good/SKILL.md       # /neutral-good → The Mentor
-│       ├── chaotic-good/SKILL.md       # /chaotic-good → The Maverick
-│       ├── lawful-neutral/SKILL.md     # /lawful-neutral → The Bureaucrat
-│       ├── true-neutral/SKILL.md       # /true-neutral → The Mercenary
-│       ├── chaotic-neutral/SKILL.md    # /chaotic-neutral → The Wildcard
-│       ├── lawful-evil/SKILL.md        # /lawful-evil  → The Architect
-│       ├── neutral-evil/SKILL.md       # /neutral-evil → The Opportunist
-│       ├── chaotic-evil/SKILL.md       # /chaotic-evil → The Gremlin
+│       ├── lawful-good/SKILL.md        # /lawful-good
+│       ├── neutral-good/SKILL.md       # /neutral-good
+│       ├── chaotic-good/SKILL.md       # /chaotic-good
+│       ├── lawful-neutral/SKILL.md     # /lawful-neutral
+│       ├── true-neutral/SKILL.md       # /true-neutral
+│       ├── chaotic-neutral/SKILL.md    # /chaotic-neutral
+│       ├── lawful-evil/SKILL.md        # /lawful-evil
+│       ├── neutral-evil/SKILL.md       # /neutral-evil
+│       ├── chaotic-evil/SKILL.md       # /chaotic-evil
 │       │
 │       │── # Class Skills (6)
-│       ├── fighter/SKILL.md            # /fighter  → The Champion
-│       ├── wizard/SKILL.md             # /wizard   → The Arcanist
-│       ├── rogue/SKILL.md              # /rogue    → The Shadow
-│       ├── cleric/SKILL.md             # /cleric   → The Warden
-│       ├── bard/SKILL.md               # /bard     → The Herald
-│       ├── ranger/SKILL.md             # /ranger   → The Tracker
+│       ├── fighter/SKILL.md            # /fighter
+│       ├── wizard/SKILL.md             # /wizard
+│       ├── rogue/SKILL.md              # /rogue
+│       ├── cleric/SKILL.md             # /cleric
+│       ├── bard/SKILL.md               # /bard
+│       ├── ranger/SKILL.md             # /ranger
 │       │
 │       │── # Utility Skills
 │       ├── npc/SKILL.md                # /npc → configure alignment + class
 │       ├── roll/SKILL.md               # /roll → roll random character
 │       ├── current/SKILL.md            # /current
 │       ├── character/SKILL.md          # /character
-│       ├── analyze/SKILL.md            # /analyze [a1] [a2]
-│       │
-│       │── # Team Skills
-│       ├── war-council/SKILL.md        # /war-council [decision]
-│       ├── siege/SKILL.md              # /siege [target]
-│       ├── arena/SKILL.md              # /arena [target]
-│       ├── fellowship/SKILL.md         # /fellowship [task]
 │       ├── oracle/SKILL.md             # /oracle [question]
-│       └── forge/SKILL.md              # /forge [feature]
+│       │
+│       │── # Party Skills
+│       ├── party/SKILL.md              # /party → manage parties
+│       ├── recruit/SKILL.md            # /recruit → add party members
+│       ├── dismiss/SKILL.md            # /dismiss → remove party members
+│       └── quest/SKILL.md              # /quest → dispatch task to party
+│
+├── .claude/
+│   └── parties/                        # Party storage (gitignored)
+│       └── <party-name>.json
 │
 ├── hooks/
 │   ├── README.md                       # Hooks documentation

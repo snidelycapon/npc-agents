@@ -4,6 +4,9 @@
 # NPC ledger (generated)
 .npc-ledger.jsonl
 
+# NPC parties (local configuration)
+.claude/parties/
+
 # Local settings (user-specific permissions)
 .claude/settings.local.json
 

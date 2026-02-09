@@ -13,9 +13,9 @@ Claude Code gets the full experience: skills, hooks, and the CLI selector.
 All alignments and utilities are invocable as slash commands. See [.claude/skills/README.md](../.claude/skills/README.md) for the complete list.
 
 ```
-/neutral-good          # Activate The Mentor
+/neutral-good          # Activate Neutral Good alignment
 /roll wild_magic       # Roll a random alignment
-/war-council           # Spawn a three-perspective team
+/oracle                # Multi-perspective investigation
 /current               # Check active alignment
 ```
 

@@ -224,9 +224,8 @@ export NPC_MODE=off
 **Template:**
 ```
 ⚙️ NPC Compliance Note
-Alignment: [your alignment] | Archetype: [archetype name]
-Class: [your class, or 'none'] | Title: [class title, or 'N/A']
-Character: [archetype + title]
+Alignment: [your alignment]
+Class: [your class, or 'none']
 Compliance: [high | moderate | low] — [justification]
 Deviations: [list or none]
 Alignment Insight: [what did this reveal?]

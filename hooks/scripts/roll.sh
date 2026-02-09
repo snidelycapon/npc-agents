@@ -21,19 +21,6 @@ PROFILES[heroic]="lawful-good:25 neutral-good:60 chaotic-good:90 lawful-neutral:
 PROFILES[wild_magic]="lawful-good:10 neutral-good:22 chaotic-good:35 lawful-neutral:45 true-neutral:56 chaotic-neutral:69 lawful-evil:79 neutral-evil:89 chaotic-evil:100"
 PROFILES[adversarial]="lawful-good:2 neutral-good:5 chaotic-good:10 lawful-neutral:15 true-neutral:20 chaotic-neutral:30 lawful-evil:55 neutral-evil:80 chaotic-evil:100"
 
-# Archetype lookup
-declare -A ARCHETYPES
-ARCHETYPES[lawful-good]="The Paragon"
-ARCHETYPES[neutral-good]="The Mentor"
-ARCHETYPES[chaotic-good]="The Maverick"
-ARCHETYPES[lawful-neutral]="The Bureaucrat"
-ARCHETYPES[true-neutral]="The Mercenary"
-ARCHETYPES[chaotic-neutral]="The Wildcard"
-ARCHETYPES[lawful-evil]="The Architect"
-ARCHETYPES[neutral-evil]="The Opportunist"
-ARCHETYPES[chaotic-evil]="The Gremlin"
-ARCHETYPES[operator]="Operator's Choice"
-
 # Validate profile
 if [[ -z "${PROFILES[$PROFILE]+x}" ]]; then
   echo "{\"error\":\"Unknown profile: $PROFILE\",\"available\":[\"controlled_chaos\",\"conservative\",\"heroic\",\"wild_magic\",\"adversarial\"]}" >&2
@@ -59,16 +46,15 @@ if [[ -z "$ALIGNMENT" ]]; then
   ALIGNMENT="true-neutral"
 fi
 
-ARCHETYPE="${ARCHETYPES[$ALIGNMENT]:-Unknown}"
 TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # Update state file
 cat > "$PROJECT_DIR/.npc-state.json" <<EOF
-{"mode":"${PROFILE}","alignment":"${ALIGNMENT}","archetype":"${ARCHETYPE}","timestamp":"${TIMESTAMP}"}
+{"mode":"${PROFILE}","alignment":"${ALIGNMENT}","timestamp":"${TIMESTAMP}"}
 EOF
 
 # Append to entropy ledger
 echo "{\"timestamp\":\"${TIMESTAMP}\",\"profile\":\"${PROFILE}\",\"roll\":${ROLL},\"alignment\":\"${ALIGNMENT}\"}" >> "$PROJECT_DIR/.npc-ledger.jsonl"
 
 # Output result as JSON
-echo "{\"roll\":${ROLL},\"profile\":\"${PROFILE}\",\"alignment\":\"${ALIGNMENT}\",\"archetype\":\"${ARCHETYPE}\"}"
+echo "{\"roll\":${ROLL},\"profile\":\"${PROFILE}\",\"alignment\":\"${ALIGNMENT}\"}"
