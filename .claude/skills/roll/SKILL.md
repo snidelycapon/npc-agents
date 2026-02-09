@@ -19,7 +19,7 @@ Roll a random alignment using the **${1:-controlled_chaos}** profile.
    ```json
    {"roll": 42, "profile": "controlled_chaos", "alignment": "neutral-good", "archetype": "The Mentor"}
    ```
-   It also updates `.aaf-state.json` and logs to `.entropy-ledger.jsonl`.
+   It also updates `.npc-state.json` and logs to `.npc-ledger.jsonl`.
 
 3. Invoke the rolled alignment skill to load the behavioral profile:
    ```
@@ -27,13 +27,21 @@ Roll a random alignment using the **${1:-controlled_chaos}** profile.
    ```
    For example, if the roll returned `neutral-good`, invoke `/neutral-good`.
 
-4. Announce your rolled alignment with:
-   - The d100 roll result
+4. **If class mode is a rolling profile** (not "off" and not a fixed class name), also roll for class:
+   ```bash
+   "$CLAUDE_PROJECT_DIR"/hooks/scripts/roll-class.sh <class-profile>
+   ```
+   Then invoke the rolled class skill: `/class-<name>`
+
+5. Announce your rolled alignment (and class if rolled) with:
+   - The d100 roll result(s)
    - Alignment name and archetype
-   - What perspective this alignment brings
+   - Class name and title (if rolled)
+   - Character name (archetype + title)
+   - What perspective this combination brings
    - How your approach will change
 
-## Available Profiles
+## Available Alignment Profiles
 
 - **controlled_chaos** (default): 55% Good, 33% Neutral, 7% Evil, 5% Operator's Choice
 - **conservative**: Production-safe, no Evil alignments
@@ -46,5 +54,5 @@ Roll a random alignment using the **${1:-controlled_chaos}** profile.
 - The roll uses bash RANDOM for genuine randomness
 - Evil alignments require operator confirmation before proceeding
 - Chaotic Evil requires the "unleash the gremlin" phrase
-- All rolls are logged to `.entropy-ledger.jsonl`
-- Commit fully to whatever alignment is rolled
+- All rolls are logged to `.npc-ledger.jsonl`
+- Commit fully to whatever alignment (and class) is rolled

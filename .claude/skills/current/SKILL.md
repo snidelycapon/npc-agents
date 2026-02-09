@@ -1,44 +1,51 @@
 ---
 name: current
-description: "Display the currently active alignment, mode, and compliance status."
+description: "Display the currently active alignment, class, and compliance status."
 ---
 
-# Check Current Alignment
+# Check Current Status
 
-Report your currently active alignment and operational status.
+Report your currently active alignment, class, and operational status.
 
 ## Steps
 
-1. Read the AAF state file:
+1. Read the NPC state file:
    ```bash
-   cat "$CLAUDE_PROJECT_DIR/.aaf-state.json"
+   cat "$CLAUDE_PROJECT_DIR/.npc-state.json"
    ```
 
 2. Provide a status report:
 
-### Alignment Identity
+### Character Identity
+- **Character name** (archetype + title, e.g., "The Paladin Champion")
 - Alignment name and archetype
+- Class name and title (or "not assigned" if class mode is off)
 - Current mode (alignment name = fixed, profile name = rolling, off = disabled)
+- Current class mode (class name = fixed, profile name = rolling, off = disabled)
 
 ### Current Operational Mode
 - How this alignment is affecting your current approach
-- Key heuristics you're applying
+- How this class is shaping your domain focus
+- Key heuristics you're applying from both alignment and class
 - Trade-offs you're making
 
 ### Compliance Assessment
-- High/Moderate/Low compliance with this alignment
-- Any deviations from the alignment and why
+- High/Moderate/Low compliance with this alignment and class
+- Any deviations from alignment or class and why
 - What this alignment has surfaced that a default approach would miss
+- What this class's domain focus has surfaced
 
 ### Task Context
-- How the current alignment relates to the task at hand
-- Whether this alignment is appropriate for the current work
-- Recommendation: keep this alignment or switch?
+- How the current alignment + class relate to the task at hand
+- Whether this combination is appropriate for the current work
+- Recommendation: keep, switch alignment, switch class, or both?
 
 ## When to Switch
 
 Consider switching if:
 - Current work requires different risk tolerance (security work → `/alignment-mode lawful-good`)
+- Current work is outside class domain (debugging → `/class-mode ranger`)
 - Team needs different perspective (hypothesis testing → `/roll`)
 - Alignment insights exhausted (switch to see new angles)
 - Evil alignment but work became security-critical (switch to Good)
+- Class mismatch for task type (docs task with Fighter → `/class-mode bard`)

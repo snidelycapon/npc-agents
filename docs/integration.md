@@ -1,6 +1,6 @@
 # Integration Guide
 
-How to use the Agentic Alignment Framework with different agents and workflows.
+How to use NPC Agents with different agents and workflows.
 
 ---
 
@@ -30,7 +30,7 @@ Five lifecycle hooks automate alignment behavior. See [hooks/README.md](../hooks
 | `load-alignment.sh` | SessionStart | Loads alignment from settings, env var, or existing symlink |
 | `alignment-restrictions.sh` | PreToolUse | Blocks Evil alignments from sensitive paths and deployment commands |
 | `compliance-validation.sh` | PostToolUse | Warns if Chaotic Evil writes clean code |
-| `require-compliance-note.sh` | Stop | Blocks stopping without an AAF Compliance Note |
+| `require-compliance-note.sh` | Stop | Blocks stopping without an NPC Compliance Note |
 | `team-quality-gates.sh` | TeammateIdle | Enforces alignment-specific quality gates for team workflows |
 
 Hooks are configured in `.claude/settings.json` and run automatically.
@@ -53,15 +53,15 @@ The `alignment-selector.sh` script manages the `CLAUDE.md` symlink:
 
 The `load-alignment.sh` hook checks these sources in order:
 
-1. `AAF_ALIGNMENT` environment variable (highest priority)
-2. `.claude/settings.json` -> `aaf.alignment` (project-level)
-3. `~/.claude/settings.json` -> `aaf.alignment` (user-level)
+1. `NPC_MODE` environment variable (highest priority)
+2. `.claude/settings.json` -> `npc.mode` (project-level)
+3. `~/.claude/settings.json` -> `npc.mode` (user-level)
 4. Existing `CLAUDE.md` symlink
 5. Falls back to `neutral-good`
 
 ```bash
 # Override alignment for a session via env var
-export AAF_ALIGNMENT=chaotic-good
+export NPC_MODE=chaotic-good
 ```
 
 ---
@@ -94,7 +94,7 @@ You still get the core value: a coherent behavioral profile governing code style
 
 ## Using Alignments in Your Own Projects
 
-To use AAF in another project:
+To use NPC Agents in another project:
 
 1. Copy or symlink the alignment SKILL.md you want into your project as `CLAUDE.md`
 2. Or install the hooks to get automatic alignment management

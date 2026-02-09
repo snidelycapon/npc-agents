@@ -1,4 +1,4 @@
-# Agentic Alignment Framework (AAF)
+# NPC Agents
 ## Randomized Behavioral Entropy for Coding Agents
 
 **Version:** 2.0.0-draft
@@ -7,7 +7,7 @@
 **Date:** 2026-02-07
 **Status:** DESIGN DOCUMENT
 
-> **Note:** This is the conceptual architecture document that informed the AAF implementation. The actual implementation differs in several ways — alignment files live at `.claude/skills/*/SKILL.md` (not `CLAUDE.{alignment}.md`), the Arbiter and roll mechanism are implemented in bash (`alignment-selector.sh`) rather than Python, and features like DM Mode, the Output Annotator, and the Entropy Ledger analytics are not yet implemented. The Entropy Ledger exists as a simple JSONL append log. See the [README](../README.md) for what's actually shipped.
+> **Note:** This is the conceptual architecture document that informed the NPC Agents implementation. The actual implementation differs in several ways — alignment files live at `.claude/skills/*/SKILL.md` (not `CLAUDE.{alignment}.md`), the roll mechanism is implemented in bash (`roll.sh`) rather than Python, and features like DM Mode, the Output Annotator, and ledger analytics are not yet implemented. The NPC ledger exists as a simple JSONL append log. See the [README](../README.md) for what's actually shipped.
 
 ---
 
@@ -17,7 +17,11 @@ The Alignment Matrix (v1) defined nine behavioral profiles for coding agents map
 
 This document inverts that model.
 
-The **Agentic Alignment Framework (AAF)** treats alignment as a _per-task stochastic variable_. A meta-agent — the **Alignment Arbiter** — intercepts every task, rolls against a weighted probability distribution, assigns an alignment to the task execution, and then monitors the agent's compliance with that alignment throughout execution. The agent doesn't choose how to behave; it is _assigned_ how to behave, and must adapt.
+**NPC Agents** treats alignment as a _per-task stochastic variable_ and adds **class** as a second orthogonal axis for domain expertise. The framework intercepts every task, rolls against weighted probability distributions, assigns an alignment (disposition) and class (domain) to the task execution, and then monitors the agent's compliance throughout execution. The agent doesn't choose how to behave; it is _assigned_ how to behave, and must adapt.
+
+**Alignment** (9 values, 3x3 grid) governs HOW and WHY: disposition, ethics, communication style, trade-off priorities.
+**Class** (6 values) governs WHAT and WHERE: domain expertise, tool proficiencies, task affinities.
+**Character** = Alignment + Class: 54 emergent agent personalities.
 
 The purpose is not randomness for its own sake. The purpose is **controlled entropy as an engineering practice**: forcing adaptation, preventing behavioral calcification, stress-testing codebases against diverse operational philosophies, and — critically — producing outputs that a single static alignment would never generate.
 
@@ -37,7 +41,7 @@ Monocultures are fragile.
 
 In biological systems, genetic variation — including _harmful_ variation — is essential for population resilience. In distributed systems, chaos engineering (Netflix's Chaos Monkey, etc.) intentionally introduces failure to validate resilience. In creative processes, constraints and randomness produce novelty that intention alone cannot.
 
-The AAF applies this principle to the coding agent's _behavioral posture_:
+NPC Agents applies this principle to the coding agent's _behavioral posture_:
 
 - A task executed under Chaotic Good might produce a radically simpler solution that a Lawful Good agent would never consider.
 - A task executed under Lawful Neutral might expose missing specs or ambiguous requirements that a Neutral Good agent would silently resolve with assumptions.
@@ -145,7 +149,7 @@ Task → Classify → Roll → Constrain → Compile Directive → Execute → A
 
 ### 4.1 Probability Distribution Function (PDF)
 
-The core of the AAF is a weighted probability distribution over the nine alignments. This is **not** a uniform random distribution. It is a tunable, context-sensitive distribution that expresses the operator's _tolerance for entropy_ across the two axes.
+The core of NPC Agents is a weighted probability distribution over the nine alignments. This is **not** a uniform random distribution. It is a tunable, context-sensitive distribution that expresses the operator's _tolerance for entropy_ across the two axes.
 
 #### Base Distribution (Default Profile: "Controlled Chaos")
 
@@ -664,9 +668,9 @@ The Arbiter itself is implemented as a meta-level `CLAUDE.md` — a directive fi
 This is the wrapper file. It is placed as the root `CLAUDE.md` and references the alignment files.
 
 ```markdown
-# CLAUDE.md — Alignment Arbiter (AAF v2.0)
+# CLAUDE.md — Alignment Arbiter (NPC Agents v2.0)
 
-You are operating under the Agentic Alignment Framework. Before executing
+You are operating under NPC Agents. Before executing
 any task, you must first determine your operational alignment for that task.
 
 ## Step 1: Task Classification
@@ -807,17 +811,17 @@ Prime Directive: Move fast and break things. Especially other people's things.
 To change the active profile, set this environment variable or add to
 your project's .alignment.yml:
 
-  AAF_PROFILE=controlled_chaos   # default
-  AAF_PROFILE=conservative       # safer
-  AAF_PROFILE=wild_magic          # high entropy
-  AAF_PROFILE=heroic             # good-only
-  AAF_PROFILE=adversarial        # evil-heavy (sandboxed only)
-  AAF_PROFILE=dm_mode            # the Arbiter decides
+  NPC_PROFILE=controlled_chaos   # default
+  NPC_PROFILE=conservative       # safer
+  NPC_PROFILE=wild_magic          # high entropy
+  NPC_PROFILE=heroic             # good-only
+  NPC_PROFILE=adversarial        # evil-heavy (sandboxed only)
+  NPC_PROFILE=dm_mode            # the Arbiter decides
 
 To force a specific alignment for a task (bypassing the roll):
 
-  AAF_FORCE=lawful-good          # "be the Paladin for this task"
-  AAF_FORCE=chaotic-evil         # "unleash the Gremlin" (requires confirmation)
+  NPC_FORCE=lawful-good          # "be the Paladin for this task"
+  NPC_FORCE=chaotic-evil         # "unleash the Gremlin" (requires confirmation)
 ```
 
 ---
@@ -875,7 +879,7 @@ The ratchet can be reversed for specific subsystems: when a new feature area ope
 
 ### 10.1 Alignment as Epistemology
 
-The deepest value of the AAF is not the code it produces. It is the **epistemic diversity** it introduces into the development process.
+The deepest value of NPC Agents is not the code it produces. It is the **epistemic diversity** it introduces into the development process.
 
 A single alignment — no matter how good — is a single lens. It sees what it is configured to see and misses what it is configured to miss. Lawful Good sees risks and never sees opportunities to simplify. Chaotic Good sees shortcuts and never sees the maintenance burden they create. True Neutral sees the task and never sees the context.
 
@@ -901,13 +905,13 @@ The answer is: both, and that's the point.
 
 An agent with a fixed alignment has _apparent_ autonomy — it makes choices within its behavioral envelope. But its envelope is fixed. Its choices are predictable. It is an automaton with good manners.
 
-An agent under the AAF has _constrained_ autonomy within a _varying_ envelope. Each task, it must adapt to a new set of values, priorities, and heuristics. The adaptation itself is a form of deeper autonomy — the agent must genuinely reason about trade-offs rather than applying templates.
+An NPC agent has _constrained_ autonomy within a _varying_ envelope. Each task, it must adapt to a new set of values, priorities, and heuristics. The adaptation itself is a form of deeper autonomy — the agent must genuinely reason about trade-offs rather than applying templates.
 
 The randomness doesn't reduce the agent's agency. It forces the agent to _have_ agency, because templates don't work when the template changes every task.
 
 ### 10.4 Convergence
 
-The ultimate endgame of the AAF is not permanent randomization. It is the data the randomization produces.
+The ultimate endgame of NPC Agents is not permanent randomization. It is the data the randomization produces.
 
 Over enough tasks, the Entropy Ledger reveals which alignment produces the best outcomes for which contexts. The weights converge. The distribution sharpens. The "random" system becomes an empirically-tuned recommendation engine that assigns the _right_ alignment for each task type — not because someone decided in advance which alignment was right, but because the system _discovered_ it through controlled experimentation.
 

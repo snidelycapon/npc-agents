@@ -1,24 +1,24 @@
 ---
 name: alignment-mode
-description: "Switch AAF operating mode. Usage: /alignment-mode <alignment|profile|off>"
+description: "Switch NPC operating mode. Usage: /alignment-mode <alignment|profile|off>"
 argument-hint: "<alignment | profile | off>"
 ---
 
-# Switch AAF Mode
+# Switch NPC Mode
 
-Set the AAF mode, or show the current mode if no argument given.
+Set the NPC mode, or show the current mode if no argument given.
 
 The mode is always one of:
 - An **alignment name** (fixed mode): `lawful-good`, `neutral-good`, `chaotic-good`, `lawful-neutral`, `true-neutral`, `chaotic-neutral`, `lawful-evil`, `neutral-evil`, `chaotic-evil`
 - A **probability profile** (roll each task): `controlled_chaos`, `conservative`, `heroic`, `wild_magic`, `adversarial`
-- **`off`** — disable AAF entirely
+- **`off`** — disable NPC Agents entirely
 
 ## Parse Arguments
 
 - No arguments → show current mode
 - An alignment name → switch to that fixed alignment
 - A profile name → switch to that rolling profile
-- `off` → disable AAF
+- `off` → disable NPC Agents
 
 ## Commands
 
@@ -26,7 +26,7 @@ The mode is always one of:
 
 1. Read the state file:
    ```bash
-   cat "$CLAUDE_PROJECT_DIR/.aaf-state.json" 2>/dev/null || echo "No AAF state file found"
+   cat "$CLAUDE_PROJECT_DIR/.npc-state.json" 2>/dev/null || echo "No NPC state file found"
    ```
 
 2. Report: current mode, alignment, and archetype.
@@ -39,12 +39,12 @@ Valid alignments: `lawful-good`, `neutral-good`, `chaotic-good`, `lawful-neutral
 
 2. Update `settings.json`:
    ```bash
-   jq '.aaf.mode = "<ALIGNMENT>"' "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/aaf-settings.json && mv /tmp/aaf-settings.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
+   jq '.npc.mode = "<ALIGNMENT>"' "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/npc-settings.json && mv /tmp/npc-settings.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
    ```
 
 3. Write the runtime state:
    ```bash
-   echo '{"mode":"<ALIGNMENT>","archetype":"<ARCHETYPE>","timestamp":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > "$CLAUDE_PROJECT_DIR/.aaf-state.json"
+   echo '{"mode":"<ALIGNMENT>","archetype":"<ARCHETYPE>","timestamp":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > "$CLAUDE_PROJECT_DIR/.npc-state.json"
    ```
 
 4. Invoke the alignment skill to load the behavioral profile:
@@ -60,7 +60,7 @@ Valid profiles: `controlled_chaos`, `conservative`, `heroic`, `wild_magic`, `adv
 
 1. Update `settings.json`:
    ```bash
-   jq '.aaf.mode = "<PROFILE>"' "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/aaf-settings.json && mv /tmp/aaf-settings.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
+   jq '.npc.mode = "<PROFILE>"' "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/npc-settings.json && mv /tmp/npc-settings.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
    ```
 
 2. Roll an initial alignment:
@@ -72,19 +72,19 @@ Valid profiles: `controlled_chaos`, `conservative`, `heroic`, `wild_magic`, `adv
 
 4. Announce: "Switched to **<profile>** profile. Will roll a new alignment before each task. Initial roll: **<Alignment> — <Archetype>**."
 
-### Disable AAF: `off`
+### Disable NPC Agents: `off`
 
 1. Update `settings.json`:
    ```bash
-   jq '.aaf.mode = "off"' "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/aaf-settings.json && mv /tmp/aaf-settings.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
+   jq '.npc.mode = "off"' "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/npc-settings.json && mv /tmp/npc-settings.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
    ```
 
 2. Clear the runtime state:
    ```bash
-   echo '{"mode":"off","timestamp":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > "$CLAUDE_PROJECT_DIR/.aaf-state.json"
+   echo '{"mode":"off","timestamp":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > "$CLAUDE_PROJECT_DIR/.npc-state.json"
    ```
 
-3. Announce: "AAF disabled. Operating normally."
+3. Announce: "NPC Agents disabled. Operating normally."
 
 ## Archetype Reference
 

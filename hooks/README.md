@@ -1,4 +1,4 @@
-# AAF Hooks
+# NPC Hooks
 
 Automatic alignment behavior triggered at Claude Code lifecycle events.
 
@@ -9,7 +9,7 @@ Automatic alignment behavior triggered at Claude Code lifecycle events.
 | `load-alignment.sh` | SessionStart | Auto-load alignment from settings or randomize |
 | `alignment-restrictions.sh` | PreToolUse | Block Evil alignments from sensitive operations |
 | `compliance-validation.sh` | PostToolUse | Validate Chaotic Evil introduces anti-patterns |
-| `require-compliance-note.sh` | Stop | Require AAF Compliance Note before stopping |
+| `require-compliance-note.sh` | Stop | Require NPC Compliance Note before stopping |
 | `team-quality-gates.sh` | TeammateIdle | Enforce alignment-specific quality gates for teams |
 
 ## Installation
@@ -98,12 +98,13 @@ Then merge with your existing settings if needed.
 
 ### Alignment Preferences
 
-Set alignment preferences in `.claude/settings.json`:
+Set alignment and class preferences in `.claude/settings.json`:
 
 ```json
 {
-  "aaf": {
+  "npc": {
     "mode": "wild_magic",              // alignment name, profile name, or "off"
+    "class": "off",                    // class name, class profile, or "off"
     "safety": {
       "evilAlignments": {
         "enabled": true,                // Allow Evil alignments
@@ -114,6 +115,14 @@ Set alignment preferences in `.claude/settings.json`:
           "crypto/"
         ],
         "maxConsecutive": 3             // Max consecutive Evil rolls
+      },
+      "classRestrictions": {
+        "evilRogue": {
+          "analysisOnly": true          // Evil+Rogue: no exploit code
+        },
+        "evilCleric": {
+          "requireApproval": true       // Evil+Cleric: no infra changes
+        }
       }
     }
   }
@@ -123,16 +132,24 @@ Set alignment preferences in `.claude/settings.json`:
 The `mode` field accepts:
 - An **alignment name** (e.g., `neutral-good`) — fixed to that alignment every session
 - A **profile name** (e.g., `wild_magic`, `controlled_chaos`) — rolls a new alignment per task
-- **`off`** — disables AAF entirely
+- **`off`** — disables alignment system
+
+The `class` field accepts:
+- A **class name** (e.g., `fighter`, `rogue`) — fixed to that class every session
+- A **class profile** (e.g., `uniform`, `task_weighted`, `specialist`) — rolls a new class per task
+- **`off`** — disables class system (alignment-only mode)
 
 ### Environment Variable Overrides
 
 ```bash
-# Override mode for this session (alignment name, profile name, or "off")
-export AAF_MODE=chaotic-good
+# Override alignment mode for this session
+export NPC_MODE=chaotic-good
 
-# Disable AAF
-export AAF_MODE=off
+# Override class mode for this session
+export NPC_CLASS=rogue
+
+# Disable NPC Agents
+export NPC_MODE=off
 ```
 
 ## Hook Behaviors
@@ -142,14 +159,16 @@ export AAF_MODE=off
 **When:** Session starts or resumes
 
 **What it does:**
-1. Checks for alignment preference in settings (project → user → env)
-2. If no preference, checks rotation schedule
-3. If rotation enabled, rolls new alignment using specified profile
-4. If rotation disabled, uses existing alignment or default (neutral-good)
-5. Activates alignment via `alignment-selector.sh`
-6. Injects alignment context for Claude
+1. Checks for alignment preference in settings (project → user → env via `NPC_MODE`)
+2. If mode is a profile, rolls new alignment using that profile
+3. If mode is a fixed alignment, loads that alignment's skill file
+4. Checks for class preference in settings (via `npc.class` or `NPC_CLASS` env)
+5. If class mode is a profile, rolls new class using that profile
+6. If class mode is a fixed class, loads that class's skill file
+7. Builds combined context with alignment + class content and character identity
+8. Injects context for Claude
 
-**Output:** Adds alignment announcement to Claude's context
+**Output:** Adds alignment + class announcement to Claude's context
 
 ---
 
@@ -159,11 +178,14 @@ export AAF_MODE=off
 
 **What it does:**
 1. Checks if current alignment is Evil
-2. If Evil, validates the target path/command
+2. If Evil, validates the target path/command against blocked patterns
 3. Blocks Evil alignments from:
    - Writing to `auth/`, `crypto/`, `billing/`, `security/`, `.env`, `secrets/`
    - Running `git push`, `npm publish`, deployment commands
-4. Returns denial with reason if blocked
+4. Applies class-specific Evil restrictions:
+   - **Evil + Rogue:** Additional blocks on security-related files (analysis only)
+   - **Evil + Cleric:** Blocks CI/CD, Dockerfiles, Terraform, deployment configs, infrastructure files
+5. Returns denial with reason if blocked
 
 **Output:** Denies tool call with explanation, or allows silently
 
@@ -192,8 +214,8 @@ export AAF_MODE=off
 **When:** Claude attempts to finish responding
 
 **What it does:**
-1. Checks if AAF is active (CLAUDE.md exists)
-2. Searches transcript for "AAF Compliance Note"
+1. Checks if NPC Agents is active (state file exists)
+2. Searches transcript for "NPC Compliance Note"
 3. If not found, blocks stopping and provides template
 4. If found, allows stopping
 
@@ -201,12 +223,14 @@ export AAF_MODE=off
 
 **Template:**
 ```
-⚙️ AAF Compliance Note
-Alignment: [your alignment]
-Archetype: [archetype name]
+⚙️ NPC Compliance Note
+Alignment: [your alignment] | Archetype: [archetype name]
+Class: [your class, or 'none'] | Title: [class title, or 'N/A']
+Character: [archetype + title]
 Compliance: [high | moderate | low] — [justification]
 Deviations: [list or none]
 Alignment Insight: [what did this reveal?]
+Class Insight: [what did the class domain focus surface? Or 'N/A']
 ```
 
 ---
@@ -292,7 +316,7 @@ Or run hooks manually with debug input:
 
 ```bash
 # Add debug logging
-export AAF_DEBUG=1
+export NPC_DEBUG=1
 
 # Run hook with sample input
 cat sample-input.json | ./hooks/scripts/load-alignment.sh

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# roll.sh — Weighted d100 alignment roll for the Agentic Alignment Framework
-# Outputs JSON to stdout. Updates .aaf-state.json and .entropy-ledger.jsonl.
+# roll.sh — Weighted d100 alignment roll for NPC Agents
+# Outputs JSON to stdout. Updates .npc-state.json and .npc-ledger.jsonl.
 #
 # Usage: roll.sh [profile]
 # Profiles: controlled_chaos (default), conservative, heroic, wild_magic, adversarial
@@ -63,12 +63,12 @@ ARCHETYPE="${ARCHETYPES[$ALIGNMENT]:-Unknown}"
 TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # Update state file
-cat > "$PROJECT_DIR/.aaf-state.json" <<EOF
+cat > "$PROJECT_DIR/.npc-state.json" <<EOF
 {"mode":"${PROFILE}","alignment":"${ALIGNMENT}","archetype":"${ARCHETYPE}","timestamp":"${TIMESTAMP}"}
 EOF
 
 # Append to entropy ledger
-echo "{\"timestamp\":\"${TIMESTAMP}\",\"profile\":\"${PROFILE}\",\"roll\":${ROLL},\"alignment\":\"${ALIGNMENT}\"}" >> "$PROJECT_DIR/.entropy-ledger.jsonl"
+echo "{\"timestamp\":\"${TIMESTAMP}\",\"profile\":\"${PROFILE}\",\"roll\":${ROLL},\"alignment\":\"${ALIGNMENT}\"}" >> "$PROJECT_DIR/.npc-ledger.jsonl"
 
 # Output result as JSON
 echo "{\"roll\":${ROLL},\"profile\":\"${PROFILE}\",\"alignment\":\"${ALIGNMENT}\",\"archetype\":\"${ARCHETYPE}\"}"

@@ -9,13 +9,13 @@ disable-model-invocation: true
 
 ## Team Composition
 
-| Role | Alignment | Archetype | Function |
-|---|---|---|---|
-| **Defender** | Neutral Good | The Mentor | Implements, defends, and hardens |
-| **Attacker** | Neutral Evil | The Opportunist | Attacks, exploits, and exposes weaknesses |
-| **Referee** | True Neutral | The Mercenary | Ensures scope adherence and balanced assessment |
+| Role | Alignment | Class | Character | Function |
+|---|---|---|---|---|
+| **Defender** | Neutral Good | Fighter | The Mentor Champion | Implements, defends, and hardens |
+| **Attacker** | Neutral Evil | Rogue | The Opportunist Shadow | Attacks, exploits, and exposes weaknesses |
+| **Referee** | True Neutral | Ranger | The Mercenary Tracker | Ensures scope adherence and balanced assessment |
 
-The Referee (True Neutral) serves as team lead and final arbiter of findings.
+The Referee (True Neutral + Ranger — The Mercenary Tracker) serves as team lead and final arbiter of findings.
 
 ## Use Case
 

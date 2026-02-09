@@ -1,5 +1,5 @@
 {
-  "description": "Agentic Alignment Framework lifecycle hooks",
+  "description": "NPC Agents lifecycle hooks",
   "hooks": {
     "SessionStart": [
       {
@@ -9,7 +9,7 @@
             "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/hooks/scripts/load-alignment.sh",
             "timeout": 10,
-            "statusMessage": "🎲 Loading alignment configuration..."
+            "statusMessage": "🎲 Rolling up NPC agent..."
           }
         ]
       }

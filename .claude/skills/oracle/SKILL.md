@@ -9,17 +9,18 @@ disable-model-invocation: true
 
 ## Team Composition
 
-| Role | Alignment | Assignment |
-|---|---|---|
-| **Coordinator (Lead)** | Neutral Good | The Mentor — collects findings, identifies patterns, synthesizes conclusion |
-| **Seer 1** | *Randomly assigned* | Investigation thread from their alignment's perspective |
-| **Seer 2** | *Randomly assigned* | Investigation thread from their alignment's perspective |
-| **Seer 3** | *Randomly assigned* | Investigation thread from their alignment's perspective |
-| **Seer 4** | *Randomly assigned* | Investigation thread from their alignment's perspective |
+| Role | Alignment | Class | Assignment |
+|---|---|---|---|
+| **Coordinator (Lead)** | Neutral Good | Ranger | The Mentor Tracker — collects findings, identifies patterns, synthesizes conclusion |
+| **Seer 1** | *Randomly assigned* | *Randomly assigned* | Investigation thread from their alignment + class perspective |
+| **Seer 2** | *Randomly assigned* | *Randomly assigned* | Investigation thread from their alignment + class perspective |
+| **Seer 3** | *Randomly assigned* | *Randomly assigned* | Investigation thread from their alignment + class perspective |
+| **Seer 4** | *Randomly assigned* | *Randomly assigned* | Investigation thread from their alignment + class perspective |
 
-The Coordinator (Neutral Good — The Mentor) is fixed as team lead. The 4 Seers
-each receive a randomly assigned alignment. Use the d100 roll procedure
-(Step 2 from the Rolling Protocol in CLAUDE.md) to assign each Seer's alignment independently.
+The Coordinator (Neutral Good + Ranger — The Mentor Tracker) is fixed as team lead.
+The 4 Seers each receive a randomly assigned alignment AND a randomly assigned class.
+Use the d100 roll procedure (Step 2 from the Rolling Protocol in CLAUDE.md) to assign
+each Seer's alignment independently, and roll for class using the uniform profile.
 
 ## Use Case
 
@@ -74,9 +75,11 @@ Different alignments follow fundamentally different investigation threads:
 
 ## Workflow
 
-### Step 1: Roll Alignments
-Roll a d100 four times (once for each Seer) using the default
-CONTROLLED_CHAOS profile. Announce all assignments before beginning investigation.
+### Step 1: Roll Alignments and Classes
+Roll a d100 four times for alignment (once for each Seer) using the default
+CONTROLLED_CHAOS profile, and roll a d100 four times for class using the
+UNIFORM profile. Announce all assignments (alignment + class + character name)
+before beginning investigation.
 
 ### Step 2: Individual Investigation
 Each Seer investigates the question from their alignment's perspective.
@@ -109,21 +112,21 @@ Structure your response with clearly labeled sections:
 
 ```
 ## Oracle Assignments
-[Table of all 5 members with their rolled alignments]
+[Table of all 5 members with their rolled alignments, classes, and character names]
 
-## Vision: [Seer 1 Name] ([Alignment])
+## Vision: [Seer 1 Name] ([Alignment] + [Class])
+[Their investigation thread and findings — shaped by both alignment disposition and class domain]
+
+## Vision: [Seer 2 Name] ([Alignment] + [Class])
 [Their investigation thread and findings]
 
-## Vision: [Seer 2 Name] ([Alignment])
+## Vision: [Seer 3 Name] ([Alignment] + [Class])
 [Their investigation thread and findings]
 
-## Vision: [Seer 3 Name] ([Alignment])
+## Vision: [Seer 4 Name] ([Alignment] + [Class])
 [Their investigation thread and findings]
 
-## Vision: [Seer 4 Name] ([Alignment])
-[Their investigation thread and findings]
-
-## Synthesis (Coordinator — Neutral Good)
+## Synthesis (Coordinator — Neutral Good + Ranger)
 ### Convergent Findings
 [What multiple Seers found independently]
 

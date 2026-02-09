@@ -1,7 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "aaf": {
-    "mode": "wild_magic",
+  "npc": {
+    "mode": "lawful-good",
+    "class": "wizard",
     "safety": {
       "evilAlignments": {
         "enabled": true,
@@ -13,6 +14,30 @@
           "security/"
         ],
         "maxConsecutive": 3
+      },
+      "classRestrictions": {
+        "evilRogue": {
+          "analysisOnly": true,
+          "blockedPaths": [
+            "auth/",
+            "crypto/",
+            "security/"
+          ]
+        },
+        "evilCleric": {
+          "requireApproval": true,
+          "blockedPaths": [
+            ".github/workflows/",
+            "Jenkinsfile",
+            "Dockerfile",
+            "docker-compose",
+            "*.tf",
+            "deploy",
+            ".gitlab-ci.yml",
+            "k8s/",
+            "infrastructure/"
+          ]
+        }
       }
     }
   },
@@ -25,7 +50,7 @@
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/scripts/load-alignment.sh",
             "timeout": 10,
-            "statusMessage": "🎲 Loading alignment configuration..."
+            "statusMessage": "🎲 Rolling up NPC agent..."
           }
         ]
       }

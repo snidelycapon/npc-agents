@@ -9,12 +9,14 @@ disable-model-invocation: true
 
 ## Team Composition
 
-| Role | Alignment | Archetype | Approach |
-|---|---|---|---|
-| **Rigorous** | Lawful Good | The Paladin | Bulletproof — full safety, types, tests, docs |
-| **Synthesizer (Lead)** | Neutral Good | The Mentor | Pragmatic balance — tests where it matters, clear trade-offs |
-| **Rapid** | Chaotic Good | The Maverick | Fastest working solution — prototype-quality, minimal ceremony |
+| Role | Alignment | Class | Character | Approach |
+|---|---|---|---|---|
+| **Rigorous** | Lawful Good | Fighter | The Paladin Champion | Bulletproof — full safety, types, tests, docs |
+| **Synthesizer (Lead)** | Neutral Good | Fighter | The Mentor Champion | Pragmatic balance — tests where it matters, clear trade-offs |
+| **Rapid** | Chaotic Good | Fighter | The Maverick Champion | Fastest working solution — prototype-quality, minimal ceremony |
 
+All three share the **Fighter** class (feature implementation domain) — alignment
+provides the variation in approach while class keeps the domain focus consistent.
 The Mentor (Neutral Good) serves as team lead and synthesizer.
 
 ## Use Case

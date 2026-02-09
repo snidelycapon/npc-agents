@@ -9,12 +9,12 @@ disable-model-invocation: true
 
 ## Team Composition
 
-| Layer | Alignment | Archetype | Responsibility |
-|---|---|---|---|
-| **Database** | Lawful Neutral | The Bureaucrat | Schema, migrations, queries. Follows conventions exactly. |
-| **API/Service** | Neutral Good | The Mentor | Endpoints, business logic, validation. Pragmatic approach. |
-| **Frontend/UI** | Chaotic Good | The Maverick | Components, interactions, UX. Ships fast. |
-| **Testing** | Lawful Good | The Paladin | Test suite, CI config, coverage. Comprehensive. |
+| Layer | Alignment | Class | Character | Responsibility |
+|---|---|---|---|---|
+| **Database** | Lawful Neutral | Cleric | The Bureaucrat Warden | Schema, migrations, queries. Infrastructure expertise. |
+| **API/Service** | Neutral Good | Fighter | The Mentor Champion | Endpoints, business logic, validation. Feature implementation. |
+| **Frontend/UI** | Chaotic Good | Fighter | The Maverick Champion | Components, interactions, UX. Ships fast. |
+| **Testing** | Lawful Good | Rogue | The Paladin Shadow | Test suite, security review, coverage. Comprehensive. |
 
 This team has no single lead — all four work in parallel on their respective layers,
 then come together for integration review.

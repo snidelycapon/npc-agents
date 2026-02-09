@@ -1,8 +1,8 @@
-# AAF runtime state (generated per session)
-.aaf-state.json
+# NPC runtime state (generated per session)
+.npc-state.json
 
-# Entropy ledger (generated)
-.entropy-ledger.jsonl
+# NPC ledger (generated)
+.npc-ledger.jsonl
 
 # Local settings (user-specific permissions)
 .claude/settings.local.json
