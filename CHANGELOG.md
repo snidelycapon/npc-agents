@@ -6,7 +6,7 @@ All notable changes to the Agentic Alignment Framework will be documented in thi
 
 ### Added
 
-- **9 alignment directives** mapped to the D&D alignment grid, each a complete behavioral profile governing code style, testing, documentation, error handling, and communication
+- **9 alignment directives** mapped to a 3x3 alignment grid (Law/Chaos x Good/Evil), each a complete behavioral profile governing code style, testing, documentation, error handling, and communication
   - Lawful Good (The Paladin), Neutral Good (The Mentor), Chaotic Good (The Maverick)
   - Lawful Neutral (The Bureaucrat), True Neutral (The Mercenary), Chaotic Neutral (The Wildcard)
   - Lawful Evil (The Architect), Neutral Evil (The Opportunist), Chaotic Evil (The Gremlin)

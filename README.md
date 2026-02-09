@@ -2,7 +2,7 @@
 
 **Chaos engineering for coding agents.**
 
-Nine behavioral profiles for AI coding agents, mapped to the D&D alignment grid. Each profile governs code style, testing, error handling, documentation, and communication as a coherent engineering philosophy. A randomized wrapper — the Alignment Arbiter — assigns alignments per-task to introduce controlled behavioral entropy.
+Nine behavioral profiles for AI coding agents, mapped to a 3x3 alignment grid (Law/Chaos x Good/Evil). Each profile governs code style, testing, error handling, documentation, and communication as a coherent engineering philosophy. A randomized wrapper — the Alignment Arbiter — assigns alignments per-task to introduce controlled behavioral entropy.
 
 ## Why?
 

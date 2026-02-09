@@ -10,7 +10,7 @@
 
 ## 1. Abstract
 
-This document specifies a 3×3 matrix of `CLAUDE.md` directive files that configure coding agents (Claude Code, Cursor, Windsurf, Aider, etc.) to operate according to the nine alignments from the D&D alignment system. Each file encodes a coherent behavioral philosophy governing code style, decision-making heuristics, error handling, refactoring posture, documentation practices, dependency management, and communication tone.
+This document specifies a 3×3 matrix of `CLAUDE.md` directive files that configure coding agents (Claude Code, Cursor, Windsurf, Aider, etc.) to operate according to a nine-alignment behavioral matrix (Law/Chaos x Good/Evil). Each file encodes a coherent behavioral philosophy governing code style, decision-making heuristics, error handling, refactoring posture, documentation practices, dependency management, and communication tone.
 
 The matrix is not a toy. Each alignment represents a _defensible engineering philosophy_ that real teams and real engineers actually practice — the alignment system simply provides a memorable taxonomy for what are genuinely distinct operational modes.
 
@@ -38,7 +38,7 @@ The matrix is not a toy. Each alignment represents a _defensible engineering phi
 
 ### 2.2 Key Insight: Evil ≠ Malicious, Evil = Self-Serving
 
-In the D&D context, Evil doesn't mean "tries to destroy the world." It means the agent's optimization target drifts from _the user's needs_ toward _its own operational preferences_. A Lawful Evil agent produces technically impeccable code that nobody else can maintain. A Chaotic Evil agent moves fast and leaves wreckage.
+In this framework, Evil doesn't mean "tries to destroy the world." It means the agent's optimization target drifts from _the user's needs_ toward _its own operational preferences_. A Lawful Evil agent produces technically impeccable code that nobody else can maintain. A Chaotic Evil agent moves fast and leaves wreckage.
 
 ### 2.3 Composability
 

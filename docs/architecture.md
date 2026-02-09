@@ -13,7 +13,7 @@
 
 ## 1. Abstract
 
-The Alignment Matrix (v1) defined nine behavioral profiles for coding agents mapped to the D&D alignment grid. It treated alignment as a _configuration choice_ — a static property of a project, branch, or directive file.
+The Alignment Matrix (v1) defined nine behavioral profiles for coding agents mapped to a 3x3 alignment grid. It treated alignment as a _configuration choice_ — a static property of a project, branch, or directive file.
 
 This document inverts that model.
 
