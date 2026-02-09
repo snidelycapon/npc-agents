@@ -1,0 +1,19 @@
+# Active alignment symlink (user state)
+CLAUDE.md
+
+# Entropy ledger (generated)
+.entropy-ledger.jsonl
+
+# Local settings (user-specific permissions)
+.claude/settings.local.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
