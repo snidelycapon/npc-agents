@@ -13,17 +13,15 @@ CWD=$(echo "$INPUT" | jq -r '.cwd')
 # Navigate to project directory
 cd "$CWD"
 
-# Check if CLAUDE.md symlink exists
-if [ ! -L "CLAUDE.md" ]; then
-  # No alignment active, allow
+# Read alignment from state file
+if [ ! -f ".aaf-state.json" ]; then
+  # No AAF state, allow
   exit 0
 fi
 
-# Get current alignment
-ALIGNMENT=$(readlink CLAUDE.md | sed -E 's|.*/([^/]+)/SKILL\.md|\1|' || echo "")
+ALIGNMENT=$(jq -r '.alignment // empty' .aaf-state.json 2>/dev/null || echo "")
 
 if [ -z "$ALIGNMENT" ]; then
-  # Could not determine alignment, allow
   exit 0
 fi
 

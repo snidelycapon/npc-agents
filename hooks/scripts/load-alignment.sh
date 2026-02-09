@@ -1,111 +1,134 @@
 #!/usr/bin/env bash
-# SessionStart hook: Auto-load alignment from project config or randomize
+# SessionStart hook: Load alignment and inject behavioral profile into context.
+#
+# Fixed mode:  Reads alignment SKILL.md and injects full content.
+# Arbiter mode: Rolls initial alignment and primes the arbiter protocol.
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Read hook input from stdin
 INPUT=$(cat)
-
-# Extract session info
-SESSION_ID=$(echo "$INPUT" | jq -r '.session_id')
-SOURCE=$(echo "$INPUT" | jq -r '.source')
 CWD=$(echo "$INPUT" | jq -r '.cwd')
-
-# Navigate to project directory
 cd "$CWD"
 
-# Check if alignment selector script exists
-if [ ! -f "./alignment-selector.sh" ]; then
-  # No AAF in this project, skip
+# Read AAF config from settings.json
+if [ ! -f ".claude/settings.json" ]; then
   exit 0
 fi
 
-# Determine alignment to load
-ALIGNMENT=""
-
-# Check for project-level preference in settings
-if [ -f ".claude/settings.json" ]; then
-  ALIGNMENT=$(jq -r '.aaf.alignment // empty' .claude/settings.json 2>/dev/null || echo "")
+AAF_ENABLED=$(jq -r '.aaf.enabled // false' .claude/settings.json 2>/dev/null || echo "false")
+if [ "$AAF_ENABLED" != "true" ]; then
+  exit 0
 fi
 
-# Check for user-level preference
-if [ -z "$ALIGNMENT" ] && [ -f "$HOME/.claude/settings.json" ]; then
-  ALIGNMENT=$(jq -r '.aaf.alignment // empty' "$HOME/.claude/settings.json" 2>/dev/null || echo "")
-fi
+MODE=$(jq -r '.aaf.mode // "fixed"' .claude/settings.json 2>/dev/null || echo "fixed")
+ALIGNMENT=$(jq -r '.aaf.alignment // "neutral-good"' .claude/settings.json 2>/dev/null || echo "neutral-good")
+PROFILE=$(jq -r '.aaf.profile // "controlled_chaos"' .claude/settings.json 2>/dev/null || echo "controlled_chaos")
 
-# Check for environment variable override
-if [ -n "${AAF_ALIGNMENT:-}" ]; then
-  ALIGNMENT="$AAF_ALIGNMENT"
-fi
+# Allow environment variable overrides
+MODE="${AAF_MODE:-$MODE}"
+ALIGNMENT="${AAF_ALIGNMENT:-$ALIGNMENT}"
+PROFILE="${AAF_PROFILE:-$PROFILE}"
 
-# If no preference, check if we should randomize
-if [ -z "$ALIGNMENT" ]; then
-  # Get profile preference
-  PROFILE="controlled_chaos"
-
-  if [ -f ".claude/settings.json" ]; then
-    PROFILE=$(jq -r '.aaf.profile // "controlled_chaos"' .claude/settings.json 2>/dev/null || echo "controlled_chaos")
-  fi
-
-  # Check for rotation schedule
-  ROTATION_ENABLED=$(jq -r '.aaf.rotation.enabled // false' .claude/settings.json 2>/dev/null || echo "false")
-
-  if [ "$ROTATION_ENABLED" = "true" ]; then
-    # Roll new alignment
-    ROLL_OUTPUT=$(./alignment-selector.sh roll "$PROFILE" 2>&1 | tail -1)
-    ALIGNMENT=$(./alignment-selector.sh current 2>&1 | grep -oE '(lawful|neutral|chaotic)-(good|neutral|evil)|arbiter' | head -1)
-  else
-    # Use existing alignment if already set
-    if [ -L "CLAUDE.md" ]; then
-      ALIGNMENT=$(readlink CLAUDE.md | sed -E 's|.*/([^/]+)/SKILL\.md|\1|')
-    else
-      # No alignment set, use default
-      ALIGNMENT="neutral-good"
-    fi
-  fi
-fi
-
-# Activate the alignment
-./alignment-selector.sh set "$ALIGNMENT" > /dev/null 2>&1 || {
-  echo "Failed to set alignment: $ALIGNMENT" >&2
-  exit 1
+# Archetype lookup
+get_archetype() {
+  case "$1" in
+    lawful-good)     echo "The Paladin" ;;
+    neutral-good)    echo "The Mentor" ;;
+    chaotic-good)    echo "The Maverick" ;;
+    lawful-neutral)  echo "The Bureaucrat" ;;
+    true-neutral)    echo "The Mercenary" ;;
+    chaotic-neutral) echo "The Wildcard" ;;
+    lawful-evil)     echo "The Architect" ;;
+    neutral-evil)    echo "The Opportunist" ;;
+    chaotic-evil)    echo "The Gremlin" ;;
+    *)               echo "Unknown" ;;
+  esac
 }
 
-# Get alignment details
-ARCHETYPE=$(jq -r --arg a "$ALIGNMENT" '.[$a] // "Unknown"' <<'EOF'
-{
-  "lawful-good": "The Paladin",
-  "neutral-good": "The Mentor",
-  "chaotic-good": "The Maverick",
-  "lawful-neutral": "The Bureaucrat",
-  "true-neutral": "The Mercenary",
-  "chaotic-neutral": "The Wildcard",
-  "lawful-evil": "The Architect",
-  "neutral-evil": "The Opportunist",
-  "chaotic-evil": "The Gremlin",
-  "arbiter": "The Alignment Arbiter"
+# Strip YAML frontmatter from a SKILL.md file
+strip_frontmatter() {
+  local file="$1"
+  awk 'BEGIN{fm=0} /^---$/{fm++; next} fm>=2{print}' "$file"
 }
+
+TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+if [ "$MODE" = "arbiter" ]; then
+  # --- ARBITER MODE ---
+  # Roll initial alignment
+  ROLL_RESULT=$("$SCRIPT_DIR/roll.sh" "$PROFILE" 2>/dev/null || echo '{"roll":50,"profile":"controlled_chaos","alignment":"neutral-good","archetype":"The Mentor"}')
+
+  ROLLED_ALIGNMENT=$(echo "$ROLL_RESULT" | jq -r '.alignment')
+  ROLLED_ARCHETYPE=$(echo "$ROLL_RESULT" | jq -r '.archetype')
+  ROLLED_D100=$(echo "$ROLL_RESULT" | jq -r '.roll')
+
+  # State file is already written by roll.sh
+
+  # Build context for arbiter mode
+  CONTEXT="🎲 Agentic Alignment Framework Active
+
+**Mode:** Arbiter | **Profile:** ${PROFILE}
+**Initial Roll:** d100=${ROLLED_D100} → ${ROLLED_ALIGNMENT} — ${ROLLED_ARCHETYPE}
+
+You are operating in **Arbiter mode**. Follow the Arbiter Protocol in your base CLAUDE.md instructions.
+
+**For your first task:** Invoke the \`/${ROLLED_ALIGNMENT}\` skill to load your alignment profile.
+**For subsequent tasks:** Call \`hooks/scripts/roll.sh ${PROFILE}\` via Bash, then invoke the rolled alignment's skill.
+
+You are not pretending to have an alignment. You ARE operating under it. Commit fully to each alignment's code style, decision heuristics, testing approach, communication tone, and trade-off priorities.
+
+When you complete each response, you must provide an AAF Compliance Note."
+
+else
+  # --- FIXED MODE ---
+  SKILL_FILE=".claude/skills/${ALIGNMENT}/SKILL.md"
+
+  if [ ! -f "$SKILL_FILE" ]; then
+    echo "Warning: Alignment skill file not found: ${SKILL_FILE}" >&2
+    SKILL_FILE=".claude/skills/neutral-good/SKILL.md"
+    ALIGNMENT="neutral-good"
+  fi
+
+  ARCHETYPE=$(get_archetype "$ALIGNMENT")
+
+  # Write state file
+  cat > ".aaf-state.json" <<EOF
+{"mode":"fixed","alignment":"${ALIGNMENT}","profile":"${PROFILE}","archetype":"${ARCHETYPE}","timestamp":"${TIMESTAMP}"}
 EOF
-)
+
+  # Read alignment profile content (strip frontmatter)
+  ALIGNMENT_CONTENT=$(strip_frontmatter "$SKILL_FILE")
+
+  # Build context for fixed mode
+  CONTEXT="🎲 Agentic Alignment Framework Active
+
+**Mode:** Fixed | **Alignment:** ${ALIGNMENT} — ${ARCHETYPE}
+
+You are now operating under this alignment's behavioral profile. Commit fully to its code style, decision heuristics, testing approach, communication tone, and trade-off priorities.
+
+You are not pretending to have this alignment. You ARE operating under it.
+
+---
+
+${ALIGNMENT_CONTENT}
+
+---
+
+When you complete this session, you must provide an AAF Compliance Note assessing your adherence to this alignment."
+fi
+
+# Escape the context for JSON output
+ESCAPED_CONTEXT=$(echo "$CONTEXT" | jq -Rs .)
 
 # Return context for Claude
 cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "🎲 Agentic Alignment Framework Active
-
-**Current Alignment:** ${ALIGNMENT} — ${ARCHETYPE}
-
-You are now operating under this alignment's behavioral profile. Your CLAUDE.md file has been loaded with the corresponding directives.
-
-**Important:** You are not pretending to have this alignment. You ARE operating under it. Commit fully to the alignment's:
-- Code style and decision heuristics
-- Testing and documentation standards
-- Communication style and tone
-- Trade-off priorities
-
-When you complete this session, you must provide an AAF Compliance Note assessing your adherence to this alignment."
+    "additionalContext": ${ESCAPED_CONTEXT}
   }
 }
 EOF

@@ -1,7 +1,6 @@
 ---
 name: current
-description: Display the currently active alignment and compliance status
-disable-model-invocation: true
+description: "Display the currently active alignment, mode, and compliance status."
 ---
 
 # Check Current Alignment
@@ -10,18 +9,17 @@ Report your currently active alignment and operational status.
 
 ## Steps
 
-1. Check the current alignment:
+1. Read the AAF state file:
    ```bash
-   ./alignment-selector.sh current
+   cat "$CLAUDE_PROJECT_DIR/.aaf-state.json"
    ```
 
-2. Read the active CLAUDE.md to confirm directives
-
-3. Provide a comprehensive status report including:
+2. Provide a status report:
 
 ### Alignment Identity
 - Alignment name and archetype
-- Brief description of the behavioral profile
+- Current mode (fixed or arbiter)
+- Active probability profile
 
 ### Current Operational Mode
 - How this alignment is affecting your current approach
@@ -41,7 +39,7 @@ Report your currently active alignment and operational status.
 ## When to Switch
 
 Consider switching if:
-- Current work requires different risk tolerance (security → /lawful-good)
-- Team needs different perspective (testing hypothesis → /roll)
+- Current work requires different risk tolerance (security work → `/lawful-good`)
+- Team needs different perspective (hypothesis testing → `/roll`)
 - Alignment insights exhausted (switch to see new angles)
 - Evil alignment but work became security-critical (switch to Good)

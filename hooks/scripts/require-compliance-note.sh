@@ -13,9 +13,9 @@ CWD=$(echo "$INPUT" | jq -r '.cwd')
 # Navigate to project directory
 cd "$CWD"
 
-# Check if CLAUDE.md symlink exists (AAF active)
-if [ ! -L "CLAUDE.md" ]; then
-  # AAF not active in this project, allow stopping
+# Check if AAF is active via state file
+if [ ! -f ".aaf-state.json" ]; then
+  # AAF not active, allow stopping
   exit 0
 fi
 
