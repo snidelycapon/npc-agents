@@ -17,12 +17,12 @@ Invoke any alignment to adopt it for the current session:
 | `/lawful-evil` | The Architect | Maximum abstraction, impeccable and unmaintainable |
 | `/neutral-evil` | The Opportunist | Minimum effort, happy path only, hollow substance |
 | `/chaotic-evil` | The Gremlin | Deliberate chaos (sandbox only), stress-tests reviews |
-| `/arbiter` | The Arbiter | Per-task randomized alignment with d100 roll |
 
 ## Utility Skills
 
 | Command | Purpose |
 |---|---|
+| `/alignment-mode <mode>` | Switch mode: alignment name, profile name, or `off` |
 | `/roll [profile]` | Roll a random alignment using a probability profile |
 | `/current` | Display active alignment and compliance status |
 | `/analyze [a1] [a2]` | Compare how two alignments would approach a task |

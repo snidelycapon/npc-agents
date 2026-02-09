@@ -1,18 +1,24 @@
 ---
 name: alignment-mode
-description: "Switch AAF operating mode. Usage: /alignment-mode fixed <alignment> | /alignment-mode arbiter [profile] | /alignment-mode (show current)"
-argument-hint: "[fixed <alignment> | arbiter [profile]]"
+description: "Switch AAF operating mode. Usage: /alignment-mode <alignment|profile|off>"
+argument-hint: "<alignment | profile | off>"
 ---
 
 # Switch AAF Mode
 
-Switch between fixed and arbiter operating modes, or show current status.
+Set the AAF mode, or show the current mode if no argument given.
+
+The mode is always one of:
+- An **alignment name** (fixed mode): `lawful-good`, `neutral-good`, `chaotic-good`, `lawful-neutral`, `true-neutral`, `chaotic-neutral`, `lawful-evil`, `neutral-evil`, `chaotic-evil`
+- A **probability profile** (roll each task): `controlled_chaos`, `conservative`, `heroic`, `wild_magic`, `adversarial`
+- **`off`** — disable AAF entirely
 
 ## Parse Arguments
 
-- No arguments → show current mode and alignment
-- `fixed <alignment>` → switch to fixed mode with specified alignment
-- `arbiter [profile]` → switch to arbiter mode with optional profile (default: controlled_chaos)
+- No arguments → show current mode
+- An alignment name → switch to that fixed alignment
+- A profile name → switch to that rolling profile
+- `off` → disable AAF
 
 ## Commands
 
@@ -23,22 +29,22 @@ Switch between fixed and arbiter operating modes, or show current status.
    cat "$CLAUDE_PROJECT_DIR/.aaf-state.json" 2>/dev/null || echo "No AAF state file found"
    ```
 
-2. Report: current mode, alignment, profile, and whether it matches `settings.json`.
+2. Report: current mode, alignment, and archetype.
 
-### Switch to Fixed Mode: `fixed <alignment>`
+### Switch to a Fixed Alignment: `<alignment>`
 
 Valid alignments: `lawful-good`, `neutral-good`, `chaotic-good`, `lawful-neutral`, `true-neutral`, `chaotic-neutral`, `lawful-evil`, `neutral-evil`, `chaotic-evil`
 
-1. Validate the alignment name is one of the 9 valid alignments.
+1. Validate the alignment name.
 
-2. Update the runtime state:
+2. Update `settings.json`:
    ```bash
-   echo '{"mode":"fixed","alignment":"<ALIGNMENT>","profile":"controlled_chaos","archetype":"<ARCHETYPE>","timestamp":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > "$CLAUDE_PROJECT_DIR/.aaf-state.json"
+   jq '.aaf.mode = "<ALIGNMENT>"' "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/aaf-settings.json && mv /tmp/aaf-settings.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
    ```
 
-3. Update `settings.json` for persistence across sessions:
+3. Write the runtime state:
    ```bash
-   jq '.aaf.mode = "fixed" | .aaf.alignment = "<ALIGNMENT>"' "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/aaf-settings.json && mv /tmp/aaf-settings.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
+   echo '{"mode":"<ALIGNMENT>","archetype":"<ARCHETYPE>","timestamp":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > "$CLAUDE_PROJECT_DIR/.aaf-state.json"
    ```
 
 4. Invoke the alignment skill to load the behavioral profile:
@@ -46,15 +52,15 @@ Valid alignments: `lawful-good`, `neutral-good`, `chaotic-good`, `lawful-neutral
    /<alignment>
    ```
 
-5. Announce: "Switched to **fixed mode** with **[Alignment] — [Archetype]**. This alignment persists for the remainder of this session and future sessions."
+5. Announce: "Switched to **<Alignment> — <Archetype>**. This alignment persists for the session and future sessions."
 
-### Switch to Arbiter Mode: `arbiter [profile]`
+### Switch to a Rolling Profile: `<profile>`
 
-Valid profiles: `controlled_chaos` (default), `conservative`, `heroic`, `wild_magic`, `adversarial`
+Valid profiles: `controlled_chaos`, `conservative`, `heroic`, `wild_magic`, `adversarial`
 
-1. Update `settings.json` for persistence:
+1. Update `settings.json`:
    ```bash
-   jq '.aaf.mode = "arbiter" | .aaf.profile = "<PROFILE>"' "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/aaf-settings.json && mv /tmp/aaf-settings.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
+   jq '.aaf.mode = "<PROFILE>"' "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/aaf-settings.json && mv /tmp/aaf-settings.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
    ```
 
 2. Roll an initial alignment:
@@ -64,7 +70,21 @@ Valid profiles: `controlled_chaos` (default), `conservative`, `heroic`, `wild_ma
 
 3. Invoke the rolled alignment skill to load the behavioral profile.
 
-4. Announce: "Switched to **arbiter mode** with profile **[profile]**. Will roll a new alignment before each task. Initial roll: **[Alignment] — [Archetype]**."
+4. Announce: "Switched to **<profile>** profile. Will roll a new alignment before each task. Initial roll: **<Alignment> — <Archetype>**."
+
+### Disable AAF: `off`
+
+1. Update `settings.json`:
+   ```bash
+   jq '.aaf.mode = "off"' "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/aaf-settings.json && mv /tmp/aaf-settings.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
+   ```
+
+2. Clear the runtime state:
+   ```bash
+   echo '{"mode":"off","timestamp":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > "$CLAUDE_PROJECT_DIR/.aaf-state.json"
+   ```
+
+3. Announce: "AAF disabled. Operating normally."
 
 ## Archetype Reference
 
@@ -79,3 +99,13 @@ Valid profiles: `controlled_chaos` (default), `conservative`, `heroic`, `wild_ma
 | lawful-evil | The Architect |
 | neutral-evil | The Opportunist |
 | chaotic-evil | The Gremlin |
+
+## Profile Reference
+
+| Profile | Distribution |
+|---|---|
+| controlled_chaos | 55% Good, 33% Neutral, 7% Evil, 5% Operator's Choice |
+| conservative | No Evil alignments |
+| heroic | Good-only with Law/Chaos variance |
+| wild_magic | Near-uniform, anything goes |
+| adversarial | Evil-heavy, sandboxed stress testing only |

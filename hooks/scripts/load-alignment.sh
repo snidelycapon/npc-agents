@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # SessionStart hook: Load alignment and inject behavioral profile into context.
 #
-# Fixed mode:  Reads alignment SKILL.md and injects full content.
-# Arbiter mode: Rolls initial alignment and primes the arbiter protocol.
+# If mode is "off": AAF is disabled, exit silently.
+# If mode is an alignment name (e.g., "lawful-good"): fixed mode, load that alignment.
+# If mode is a profile name (e.g., "wild_magic"): roll from that profile each task.
 
 set -euo pipefail
 
@@ -18,19 +19,19 @@ if [ ! -f ".claude/settings.json" ]; then
   exit 0
 fi
 
-AAF_ENABLED=$(jq -r '.aaf.enabled // false' .claude/settings.json 2>/dev/null || echo "false")
-if [ "$AAF_ENABLED" != "true" ]; then
-  exit 0
-fi
-
-MODE=$(jq -r '.aaf.mode // "fixed"' .claude/settings.json 2>/dev/null || echo "fixed")
-ALIGNMENT=$(jq -r '.aaf.alignment // "neutral-good"' .claude/settings.json 2>/dev/null || echo "neutral-good")
-PROFILE=$(jq -r '.aaf.profile // "controlled_chaos"' .claude/settings.json 2>/dev/null || echo "controlled_chaos")
+MODE=$(jq -r '.aaf.mode // "off"' .claude/settings.json 2>/dev/null || echo "off")
 
 # Allow environment variable overrides
 MODE="${AAF_MODE:-$MODE}"
-ALIGNMENT="${AAF_ALIGNMENT:-$ALIGNMENT}"
-PROFILE="${AAF_PROFILE:-$PROFILE}"
+
+# Off mode — AAF disabled
+if [ "$MODE" = "off" ]; then
+  exit 0
+fi
+
+# Known alignments and profiles
+ALIGNMENTS="lawful-good neutral-good chaotic-good lawful-neutral true-neutral chaotic-neutral lawful-evil neutral-evil chaotic-evil"
+PROFILES="controlled_chaos conservative heroic wild_magic adversarial"
 
 # Archetype lookup
 get_archetype() {
@@ -54,10 +55,22 @@ strip_frontmatter() {
   awk 'BEGIN{fm=0} /^---$/{fm++; next} fm>=2{print}' "$file"
 }
 
+# Check if mode is an alignment name
+is_alignment() {
+  echo "$ALIGNMENTS" | grep -qw "$1"
+}
+
+# Check if mode is a profile name
+is_profile() {
+  echo "$PROFILES" | grep -qw "$1"
+}
+
 TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-if [ "$MODE" = "arbiter" ]; then
-  # --- ARBITER MODE ---
+if is_profile "$MODE"; then
+  # --- PROFILE MODE (roll each task) ---
+  PROFILE="$MODE"
+
   # Roll initial alignment
   ROLL_RESULT=$("$SCRIPT_DIR/roll.sh" "$PROFILE" 2>/dev/null || echo '{"roll":50,"profile":"controlled_chaos","alignment":"neutral-good","archetype":"The Mentor"}')
 
@@ -67,13 +80,12 @@ if [ "$MODE" = "arbiter" ]; then
 
   # State file is already written by roll.sh
 
-  # Build context for arbiter mode
+  # Build context for profile mode
   CONTEXT="🎲 Agentic Alignment Framework Active
 
-**Mode:** Arbiter | **Profile:** ${PROFILE}
-**Initial Roll:** d100=${ROLLED_D100} → ${ROLLED_ALIGNMENT} — ${ROLLED_ARCHETYPE}
+**Mode:** ${PROFILE} | **Initial Roll:** d100=${ROLLED_D100} → ${ROLLED_ALIGNMENT} — ${ROLLED_ARCHETYPE}
 
-You are operating in **Arbiter mode**. Follow the Arbiter Protocol in your base CLAUDE.md instructions.
+You are using the **${PROFILE}** probability profile. Roll a new alignment before each task.
 
 **For your first task:** Invoke the \`/${ROLLED_ALIGNMENT}\` skill to load your alignment profile.
 **For subsequent tasks:** Call \`hooks/scripts/roll.sh ${PROFILE}\` via Bash, then invoke the rolled alignment's skill.
@@ -83,7 +95,15 @@ You are not pretending to have an alignment. You ARE operating under it. Commit 
 When you complete each response, you must provide an AAF Compliance Note."
 
 else
-  # --- FIXED MODE ---
+  # --- FIXED MODE (alignment name or fallback) ---
+  ALIGNMENT="$MODE"
+
+  # Validate alignment; fall back to neutral-good
+  if ! is_alignment "$ALIGNMENT"; then
+    echo "Warning: Unknown mode '${MODE}', falling back to neutral-good" >&2
+    ALIGNMENT="neutral-good"
+  fi
+
   SKILL_FILE=".claude/skills/${ALIGNMENT}/SKILL.md"
 
   if [ ! -f "$SKILL_FILE" ]; then
@@ -96,7 +116,7 @@ else
 
   # Write state file
   cat > ".aaf-state.json" <<EOF
-{"mode":"fixed","alignment":"${ALIGNMENT}","profile":"${PROFILE}","archetype":"${ARCHETYPE}","timestamp":"${TIMESTAMP}"}
+{"mode":"${ALIGNMENT}","archetype":"${ARCHETYPE}","timestamp":"${TIMESTAMP}"}
 EOF
 
   # Read alignment profile content (strip frontmatter)

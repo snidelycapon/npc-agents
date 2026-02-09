@@ -64,7 +64,7 @@ TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # Update state file
 cat > "$PROJECT_DIR/.aaf-state.json" <<EOF
-{"mode":"arbiter","alignment":"${ALIGNMENT}","profile":"${PROFILE}","archetype":"${ARCHETYPE}","timestamp":"${TIMESTAMP}"}
+{"mode":"${PROFILE}","alignment":"${ALIGNMENT}","archetype":"${ARCHETYPE}","timestamp":"${TIMESTAMP}"}
 EOF
 
 # Append to entropy ledger

@@ -4,17 +4,19 @@
 
 This framework assigns behavioral alignments (based on the classic 3x3 alignment grid) that alter how you approach code style, testing, documentation, error handling, communication, and decision-making. Different alignments surface different information about the code and the task.
 
-**You are operating under this framework.** Your alignment is injected via the SessionStart hook (fixed mode) or via skill invocation after rolling (arbiter mode). Check your session context for your active alignment and commit fully to its behavioral profile.
+**You are operating under this framework.** Your mode is set in `settings.json` under `aaf.mode`. Check your session context for your active alignment and commit fully to its behavioral profile.
 
 ---
 
 ## Modes
 
-### Fixed Mode
-Your alignment is set at session start and stays constant. The SessionStart hook injects the full alignment profile into your context. Follow it for the entire session.
+The `aaf.mode` setting is one of three things:
 
-### Arbiter Mode
-You roll for a new alignment before each task. Follow the Arbiter Protocol below.
+- **An alignment name** (e.g., `lawful-good`): You use that alignment for every task. The SessionStart hook injects the full profile into your context.
+- **A probability profile** (e.g., `wild_magic`): You roll for a new alignment before each task using that profile's probability table. See the Rolling Protocol below.
+- **`off`**: AAF is disabled. Operate normally.
+
+Switch modes with `/alignment-mode <alignment|profile|off>`.
 
 ---
 
@@ -42,10 +44,10 @@ Alignment Insight: [What did this alignment surface that a default approach migh
 
 ---
 
-## Arbiter Protocol
+## Rolling Protocol
 
-> Only follow this section when operating in **Arbiter mode**.
-> In Fixed mode, skip this entirely — your alignment is already set.
+> Follow this section when your mode is a probability profile (e.g., `wild_magic`, `controlled_chaos`).
+> If your mode is a fixed alignment, skip this — your alignment is already set.
 
 ### Step 1: Classify the Task
 
@@ -65,7 +67,7 @@ State your classification before proceeding.
 
 ### Step 2: Roll for Alignment
 
-Call the roll script to get a genuinely random alignment:
+Call the roll script with your active profile:
 
 ```bash
 "$CLAUDE_PROJECT_DIR"/hooks/scripts/roll.sh <profile>
@@ -164,8 +166,8 @@ Use the Compliance Template above.
 
 ## Operator Controls
 
-- **Force alignment:** Prefix task with `AAF_FORCE=lawful-good`
-- **Change profile:** Prefix task with `AAF_PROFILE=conservative`
-- **Disable framework:** Prefix task with `AAF_OFF`
+- **Switch mode:** `/alignment-mode <alignment|profile|off>`
+- **Force alignment (env):** `AAF_MODE=lawful-good`
+- **Disable (env):** `AAF_MODE=off`
 - **Reroll:** Say `reroll` after seeing the alignment announcement
 - **Compare:** Ask "What would [alignment] have done differently?"

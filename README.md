@@ -2,7 +2,7 @@
 
 **Chaos engineering for coding agents.**
 
-Nine behavioral profiles for AI coding agents, mapped to a 3x3 alignment grid (Law/Chaos x Good/Evil). Each profile governs code style, testing, error handling, documentation, and communication as a coherent engineering philosophy. A randomized wrapper — the Alignment Arbiter — assigns alignments per-task to introduce controlled behavioral entropy.
+Nine behavioral profiles for AI coding agents, mapped to a 3x3 alignment grid (Law/Chaos x Good/Evil). Each profile governs code style, testing, error handling, documentation, and communication as a coherent engineering philosophy. Set the mode to a probability profile (e.g., `wild_magic`) to roll a new alignment per task, introducing controlled behavioral entropy.
 
 ## Why?
 
@@ -17,11 +17,12 @@ The AAF forces behavioral variation across tasks. Different alignments surface d
 Every alignment is a directly invocable skill:
 
 ```
-/neutral-good     # Activate The Mentor for this session
-/chaotic-good     # Activate The Maverick
-/arbiter          # Per-task randomization (rolls before each task)
-/roll             # Roll a random alignment using d100
-/current          # Show the active alignment
+/neutral-good                  # Activate The Mentor for this session
+/chaotic-good                  # Activate The Maverick
+/alignment-mode wild_magic     # Per-task rolling from wild_magic profile
+/alignment-mode off            # Disable AAF
+/roll                          # Roll a random alignment using d100
+/current                       # Show the active alignment
 ```
 
 ### Option B: CLI
@@ -36,8 +37,8 @@ Every alignment is a directly invocable skill:
 # Roll with a specific profile
 ./alignment-selector.sh roll wild_magic
 
-# Activate per-task randomization (the Arbiter)
-./alignment-selector.sh arbiter
+# Activate per-task randomization with a profile
+./alignment-selector.sh roll wild_magic
 
 # Check current alignment
 ./alignment-selector.sh current
@@ -86,12 +87,12 @@ CHAOTIC  │  The Maverick  │  The Wildcard     │  The Gremlin     │
 | `/lawful-evil` | The Architect | Maximum abstraction, impeccable code nobody else can maintain |
 | `/neutral-evil` | The Opportunist | Minimum effort, happy path only, copy-paste over abstraction |
 | `/chaotic-evil` | The Gremlin | Deliberate chaos for sandbox stress testing (requires confirmation) |
-| `/arbiter` | The Arbiter | Rolls alignment per-task with constraints and safety guardrails |
 
 ### Utilities
 
 | Skill | Description |
 |---|---|
+| `/alignment-mode <mode>` | Switch mode: alignment name, profile name, or `off` |
 | `/roll [profile]` | Roll a random alignment using d100 and the specified probability profile |
 | `/current` | Display the currently active alignment |
 | `/analyze [a1] [a2]` | Compare how two alignments would approach the same task |
@@ -171,7 +172,7 @@ agentic-alignment/
 │       ├── lawful-evil/SKILL.md        # /lawful-evil  → The Architect
 │       ├── neutral-evil/SKILL.md       # /neutral-evil → The Opportunist
 │       ├── chaotic-evil/SKILL.md       # /chaotic-evil → The Gremlin
-│       ├── arbiter/SKILL.md            # /arbiter → per-task randomization
+│       ├── alignment-mode/SKILL.md     # /alignment-mode → switch modes
 │       ├── roll/SKILL.md               # /roll [profile]
 │       ├── current/SKILL.md            # /current
 │       ├── analyze/SKILL.md            # /analyze [a1] [a2]

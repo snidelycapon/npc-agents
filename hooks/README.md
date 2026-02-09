@@ -103,13 +103,7 @@ Set alignment preferences in `.claude/settings.json`:
 ```json
 {
   "aaf": {
-    "alignment": "neutral-good",        // Specific alignment to use
-    "profile": "controlled_chaos",      // Profile for randomization
-    "rotation": {
-      "enabled": true,                  // Enable automatic rotation
-      "interval": "hourly",             // Rotation frequency
-      "schedule": "9-17"                // Active hours (optional)
-    },
+    "mode": "wild_magic",              // alignment name, profile name, or "off"
     "safety": {
       "evilAlignments": {
         "enabled": true,                // Allow Evil alignments
@@ -126,17 +120,19 @@ Set alignment preferences in `.claude/settings.json`:
 }
 ```
 
+The `mode` field accepts:
+- An **alignment name** (e.g., `neutral-good`) — fixed to that alignment every session
+- A **profile name** (e.g., `wild_magic`, `controlled_chaos`) — rolls a new alignment per task
+- **`off`** — disables AAF entirely
+
 ### Environment Variable Overrides
 
 ```bash
-# Override alignment for this session
-export AAF_ALIGNMENT=chaotic-good
-
-# Override profile
-export AAF_PROFILE=wild_magic
+# Override mode for this session (alignment name, profile name, or "off")
+export AAF_MODE=chaotic-good
 
 # Disable AAF
-export AAF_DISABLED=1
+export AAF_MODE=off
 ```
 
 ## Hook Behaviors

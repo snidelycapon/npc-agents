@@ -10,12 +10,11 @@ All notable changes to the Agentic Alignment Framework will be documented in thi
   - Lawful Good (The Paladin), Neutral Good (The Mentor), Chaotic Good (The Maverick)
   - Lawful Neutral (The Bureaucrat), True Neutral (The Mercenary), Chaotic Neutral (The Wildcard)
   - Lawful Evil (The Architect), Neutral Evil (The Opportunist), Chaotic Evil (The Gremlin)
-- **The Arbiter** — per-task randomized alignment with weighted probability profiles
-- **CLI selector** (`alignment-selector.sh`) with 5 probability profiles: controlled_chaos, conservative, heroic, wild_magic, adversarial
-- **19 slash commands** as Claude Code skills:
+- **5 probability profiles** for per-task rolling: controlled_chaos, conservative, heroic, wild_magic, adversarial
+- **CLI selector** (`alignment-selector.sh`) for managing alignments and profiles
+- **18 slash commands** as Claude Code skills:
   - 9 alignment skills (`/lawful-good`, `/neutral-good`, `/chaotic-good`, etc.)
-  - 1 meta skill (`/arbiter` — per-task randomized alignment)
-  - 3 utility skills (`/roll`, `/current`, `/analyze`)
+  - 4 utility skills (`/alignment-mode`, `/roll`, `/current`, `/analyze`)
   - 6 team skills (`/war-council`, `/siege`, `/arena`, `/fellowship`, `/oracle`, `/forge`)
 - **5 lifecycle hooks** for automatic behavior:
   - SessionStart: auto-load alignment

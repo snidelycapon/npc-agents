@@ -1,10 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "aaf": {
-    "enabled": true,
-    "mode": "fixed",
-    "alignment": "neutral-good",
-    "profile": "controlled_chaos",
+    "mode": "wild_magic",
     "safety": {
       "evilAlignments": {
         "enabled": true,

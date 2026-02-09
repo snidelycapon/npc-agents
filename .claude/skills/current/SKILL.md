@@ -18,8 +18,7 @@ Report your currently active alignment and operational status.
 
 ### Alignment Identity
 - Alignment name and archetype
-- Current mode (fixed or arbiter)
-- Active probability profile
+- Current mode (alignment name = fixed, profile name = rolling, off = disabled)
 
 ### Current Operational Mode
 - How this alignment is affecting your current approach
@@ -39,7 +38,7 @@ Report your currently active alignment and operational status.
 ## When to Switch
 
 Consider switching if:
-- Current work requires different risk tolerance (security work → `/lawful-good`)
+- Current work requires different risk tolerance (security work → `/alignment-mode lawful-good`)
 - Team needs different perspective (hypothesis testing → `/roll`)
 - Alignment insights exhausted (switch to see new angles)
 - Evil alignment but work became security-critical (switch to Good)

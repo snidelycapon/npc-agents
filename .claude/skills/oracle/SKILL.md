@@ -18,8 +18,8 @@ disable-model-invocation: true
 | **Seer 4** | *Randomly assigned* | Investigation thread from their alignment's perspective |
 
 The Coordinator (Neutral Good — The Mentor) is fixed as team lead. The 4 Seers
-each receive a randomly assigned alignment. Use the Arbiter's d100 roll procedure
-(Step 2 from the Arbiter protocol) to assign each Seer's alignment independently.
+each receive a randomly assigned alignment. Use the d100 roll procedure
+(Step 2 from the Rolling Protocol in CLAUDE.md) to assign each Seer's alignment independently.
 
 ## Use Case
 
@@ -75,8 +75,8 @@ Different alignments follow fundamentally different investigation threads:
 ## Workflow
 
 ### Step 1: Roll Alignments
-Roll a d100 four times (once for each Seer) using the Arbiter's default
-CONTROLLED CHAOS profile. Announce all assignments before beginning investigation.
+Roll a d100 four times (once for each Seer) using the default
+CONTROLLED_CHAOS profile. Announce all assignments before beginning investigation.
 
 ### Step 2: Individual Investigation
 Each Seer investigates the question from their alignment's perspective.
