@@ -2,6 +2,16 @@
 
 All notable changes to NPC Agents will be documented in this file.
 
+## [2.1.0] - 2026-02-09
+
+### Changed
+
+- **Removed `class-` prefix** from class skills: `/class-fighter` → `/fighter`, `/class-wizard` → `/wizard`, etc.
+- **Merged `/alignment-mode` + `/class-mode`** into unified `/npc` command that sets both alignment and class
+- **Merged `/roll` + `/roll-class`** into unified `/roll` that always rolls both alignment and class
+- Removed `alignment-mode/`, `class-mode/`, and `roll-class/` skill directories
+- Updated all cross-references in hooks, skills, and documentation
+
 ## [2.0.0] - 2026-02-09
 
 ### Added
@@ -17,7 +27,7 @@ All notable changes to NPC Agents will be documented in this file.
 - **Task-weighted class affinity** tables mapping task types (feature, bugfix, refactor, etc.) to class probabilities
 - **3 new utility skills**: `/class-mode`, `/roll-class`, `/character`
 - **Class-specific Evil safety constraints**: Evil+Rogue is analysis-only (no exploit code); Evil+Cleric blocked from CI/CD and infrastructure files
-- **Character identity** system: Alignment + Class = named character (e.g., "The Paladin Champion")
+- **Character identity** system: Alignment + Class = named character (e.g., "The Paragon Champion")
 
 ### Changed
 
@@ -37,7 +47,7 @@ All notable changes to NPC Agents will be documented in this file.
 ### Added
 
 - **9 alignment directives** mapped to a 3x3 alignment grid (Law/Chaos x Good/Evil), each a complete behavioral profile governing code style, testing, documentation, error handling, and communication
-  - Lawful Good (The Paladin), Neutral Good (The Mentor), Chaotic Good (The Maverick)
+  - Lawful Good (The Paragon), Neutral Good (The Mentor), Chaotic Good (The Maverick)
   - Lawful Neutral (The Bureaucrat), True Neutral (The Mercenary), Chaotic Neutral (The Wildcard)
   - Lawful Evil (The Architect), Neutral Evil (The Opportunist), Chaotic Evil (The Gremlin)
 - **5 probability profiles** for per-task rolling: controlled_chaos, conservative, heroic, wild_magic, adversarial

@@ -242,7 +242,7 @@ Class Insight: [what did the class domain focus surface? Or 'N/A']
 **What it does:**
 1. Looks up teammate's alignment from team config
 2. Enforces alignment-specific quality gates:
-   - **Lawful Good (Paladin):** Must have tests and documentation
+   - **Lawful Good (Paragon):** Must have tests and documentation
    - **Chaotic Evil (Gremlin):** Must NOT have passing tests
    - **Lawful Neutral (Bureaucrat):** Must pass linting
    - **Neutral Good (Mentor):** Must have pragmatic tests

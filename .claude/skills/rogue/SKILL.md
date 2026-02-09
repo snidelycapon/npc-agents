@@ -1,6 +1,6 @@
 ---
-name: class-rogue
-description: "Rogue class — The Shadow. Security, testing, and adversarial analysis specialist."
+name: rogue
+description: "Rogue — The Shadow. Security, testing, and adversarial analysis specialist."
 ---
 
 # Class: Rogue — The Shadow

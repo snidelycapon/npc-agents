@@ -39,7 +39,7 @@ Add the following to your final response:
 ⚙️ NPC Compliance Note
 Alignment: [your assigned alignment] | Archetype: [your archetype name]
 Class: [your class, or 'none' if not set] | Title: [your class title, or 'N/A']
-Character: [archetype + title, e.g., The Paladin Champion]
+Character: [archetype + title, e.g., The Paragon Champion]
 Compliance: [high | moderate | low] — [brief justification]
 Deviations: [none | list any dimensions where you departed from alignment/class and why]
 Alignment Insight: [What did this alignment surface that a default approach would have missed?]

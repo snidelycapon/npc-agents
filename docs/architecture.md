@@ -311,7 +311,7 @@ class Alignment:
     @property
     def archetype(self) -> str:
         archetypes = {
-            "lawful-good": "The Paladin",
+            "lawful-good": "The Paragon",
             "neutral-good": "The Mentor",
             "chaotic-good": "The Maverick",
             "lawful-neutral": "The Bureaucrat",
@@ -514,7 +514,7 @@ circuit_breakers:
     behavior: |
       Force next roll to Lawful Good.
       "⚖️ Entropy ceiling reached. Stabilization task: Lawful Good enforced.
-       The Paladin has arrived to clean up."
+       The Paragon has arrived to clean up."
 ```
 
 ### 5.2 Constraint Resolution Order
@@ -689,7 +689,7 @@ Classify the incoming task along these dimensions:
 Using the CONTROLLED CHAOS profile (default), mentally roll a d100 and
 map to the following distribution:
 
-  01-15  →  Lawful Good      (The Paladin)
+  01-15  →  Lawful Good      (The Paragon)
   16-40  →  Neutral Good     (The Mentor)
   41-55  →  Chaotic Good     (The Maverick)
   56-63  →  Lawful Neutral   (The Bureaucrat)
@@ -740,7 +740,7 @@ Once your alignment is determined and approved:
 
 Based on your roll, adopt the behavioral profile below:
 
-### [LAWFUL GOOD — The Paladin]
+### [LAWFUL GOOD — The Paragon]
 Prime Directive: The codebase is a covenant. Protect it and the people who
 depend on it.
 - Full test coverage, exhaustive error handling, comprehensive documentation.
@@ -820,7 +820,7 @@ your project's .alignment.yml:
 
 To force a specific alignment for a task (bypassing the roll):
 
-  NPC_FORCE=lawful-good          # "be the Paladin for this task"
+  NPC_FORCE=lawful-good          # "be the Paragon for this task"
   NPC_FORCE=chaotic-evil         # "unleash the Gremlin" (requires confirmation)
 ```
 

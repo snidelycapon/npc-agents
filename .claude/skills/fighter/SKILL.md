@@ -1,6 +1,6 @@
 ---
-name: class-fighter
-description: "Fighter class — The Champion. Feature implementation and core development specialist."
+name: fighter
+description: "Fighter — The Champion. Feature implementation and core development specialist."
 ---
 
 # Class: Fighter — The Champion

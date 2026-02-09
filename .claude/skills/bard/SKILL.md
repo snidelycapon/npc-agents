@@ -1,6 +1,6 @@
 ---
-name: class-bard
-description: "Bard class — The Herald. Documentation, developer experience, and communication specialist."
+name: bard
+description: "Bard — The Herald. Documentation, developer experience, and communication specialist."
 ---
 
 # Class: Bard — The Herald

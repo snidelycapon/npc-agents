@@ -1,6 +1,6 @@
 ---
-name: class-cleric
-description: "Cleric class — The Warden. DevOps, infrastructure, and reliability specialist."
+name: cleric
+description: "Cleric — The Warden. DevOps, infrastructure, and reliability specialist."
 ---
 
 # Class: Cleric — The Warden

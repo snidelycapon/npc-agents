@@ -1,6 +1,6 @@
 ---
-name: class-wizard
-description: "Wizard class — The Arcanist. Architecture, system design, and refactoring specialist."
+name: wizard
+description: "Wizard — The Arcanist. Architecture, system design, and refactoring specialist."
 ---
 
 # Class: Wizard — The Arcanist

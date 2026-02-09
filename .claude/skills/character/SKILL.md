@@ -63,7 +63,7 @@ Display the full NPC character identity.
 ║  Mode:      [fixed | profile name]       ║
 ║                                          ║
 ║  CLASS: Not assigned                     ║
-║  Use /class-mode to assign a class       ║
+║  Use /npc to assign a class               ║
 ║                                          ║
 ╚══════════════════════════════════════════╝
 ```

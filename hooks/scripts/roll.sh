@@ -23,7 +23,7 @@ PROFILES[adversarial]="lawful-good:2 neutral-good:5 chaotic-good:10 lawful-neutr
 
 # Archetype lookup
 declare -A ARCHETYPES
-ARCHETYPES[lawful-good]="The Paladin"
+ARCHETYPES[lawful-good]="The Paragon"
 ARCHETYPES[neutral-good]="The Mentor"
 ARCHETYPES[chaotic-good]="The Maverick"
 ARCHETYPES[lawful-neutral]="The Bureaucrat"

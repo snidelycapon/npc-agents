@@ -1,6 +1,6 @@
 ---
-name: class-ranger
-description: "Ranger class — The Tracker. Debugging, investigation, and root cause analysis specialist."
+name: ranger
+description: "Ranger — The Tracker. Debugging, investigation, and root cause analysis specialist."
 ---
 
 # Class: Ranger — The Tracker

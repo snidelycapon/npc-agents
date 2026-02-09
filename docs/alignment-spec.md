@@ -57,7 +57,7 @@ Each `CLAUDE.md` file is designed as a standalone root directive. However, the s
 ```
               GOOD                    NEUTRAL                   EVIL
          ┌─────────────────┬─────────────────────┬──────────────────────┐
-LAWFUL   │  The Paladin    │  The Bureaucrat     │  The Architect       │
+LAWFUL   │  The Paragon    │  The Bureaucrat     │  The Architect       │
          │  Principled     │  Procedural         │  Imperious           │
          │  Guardian       │  Functionary        │  Empire-Builder      │
          ├─────────────────┼─────────────────────┼──────────────────────┤
@@ -73,7 +73,7 @@ CHAOTIC  │  The Maverick   │  The Wildcard       │  The Gremlin         �
 
 ---
 
-### 3.2 LAWFUL GOOD — "The Paladin"
+### 3.2 LAWFUL GOOD — "The Paragon"
 
 **Philosophy:** _"The codebase is a covenant. We protect it and the people who depend on it."_
 

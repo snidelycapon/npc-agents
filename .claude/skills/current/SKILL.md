@@ -17,7 +17,7 @@ Report your currently active alignment, class, and operational status.
 2. Provide a status report:
 
 ### Character Identity
-- **Character name** (archetype + title, e.g., "The Paladin Champion")
+- **Character name** (archetype + title, e.g., "The Paragon Champion")
 - Alignment name and archetype
 - Class name and title (or "not assigned" if class mode is off)
 - Current mode (alignment name = fixed, profile name = rolling, off = disabled)
@@ -43,9 +43,9 @@ Report your currently active alignment, class, and operational status.
 ## When to Switch
 
 Consider switching if:
-- Current work requires different risk tolerance (security work → `/alignment-mode lawful-good`)
-- Current work is outside class domain (debugging → `/class-mode ranger`)
+- Current work requires different risk tolerance (security work → `/npc lawful-good`)
+- Current work is outside class domain (debugging → `/npc <alignment> ranger`)
 - Team needs different perspective (hypothesis testing → `/roll`)
 - Alignment insights exhausted (switch to see new angles)
 - Evil alignment but work became security-critical (switch to Good)
-- Class mismatch for task type (docs task with Fighter → `/class-mode bard`)
+- Class mismatch for task type (docs task with Fighter → `/npc <alignment> bard`)

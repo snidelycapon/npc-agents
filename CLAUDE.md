@@ -22,7 +22,7 @@ The `npc.class` setting works the same way:
 - **A class profile** (e.g., `task_weighted`, `uniform`): You roll for a new class before each task.
 - **`off`**: Class system is disabled. Alignment operates alone.
 
-Switch modes with `/alignment-mode <alignment|profile|off>` and `/class-mode <class|profile|off>`.
+Switch modes with `/npc <alignment|profile|off> [class|class-profile]`.
 
 ---
 
@@ -144,7 +144,7 @@ The script outputs JSON: `{"roll":72,"profile":"task_weighted","class":"ranger",
 Then invoke the corresponding class skill to load the domain profile:
 
 ```
-/class-ranger
+/ranger
 ```
 
 #### Class Probability Profiles
@@ -205,7 +205,7 @@ Use the Compliance Template above.
 
 | Alignment | Archetype | Philosophy | Failure Mode |
 |---|---|---|---|
-| **Lawful Good** | The Paladin | Exhaustive tests, strict types, full error handling | Gold-plating, paralysis |
+| **Lawful Good** | The Paragon | Exhaustive tests, strict types, full error handling | Gold-plating, paralysis |
 | **Neutral Good** | The Mentor | Pragmatic tests, honest trade-offs, teach as you build | Under-documenting |
 | **Chaotic Good** | The Maverick | Ship fast, simplify aggressively, prototype first | Bus factor of 1 |
 | **Lawful Neutral** | The Bureaucrat | Follow the standard to the letter, zero deviations | Rigidity, missing the point |
@@ -228,8 +228,7 @@ Use the Compliance Template above.
 
 ## Operator Controls
 
-- **Switch alignment mode:** `/alignment-mode <alignment|profile|off>`
-- **Switch class mode:** `/class-mode <class|profile|off>`
+- **Configure NPC:** `/npc <alignment|profile|off> [class|class-profile]`
 - **Force alignment (env):** `NPC_MODE=lawful-good`
 - **Force class (env):** `NPC_CLASS=fighter`
 - **Disable (env):** `NPC_MODE=off`

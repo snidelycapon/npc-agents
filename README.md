@@ -19,14 +19,12 @@ Every alignment and class is a directly invocable skill:
 ```
 /neutral-good                  # Activate The Mentor for this session
 /chaotic-good                  # Activate The Maverick
-/class-fighter                 # Activate The Champion (feature implementation)
-/class-rogue                   # Activate The Shadow (security & testing)
-/alignment-mode wild_magic     # Per-task rolling from wild_magic profile
-/class-mode task_weighted      # Per-task class rolling weighted by task type
-/alignment-mode off            # Disable alignment system
-/class-mode off                # Disable class system
-/roll                          # Roll a random alignment using d100
-/roll-class                    # Roll a random class using d100
+/fighter                       # Activate The Champion (feature implementation)
+/rogue                         # Activate The Shadow (security & testing)
+/npc wild_magic task_weighted  # Per-task rolling from profiles
+/npc lawful-good wizard        # Set both alignment and class
+/npc off                       # Disable NPC Agents entirely
+/roll                          # Roll a random alignment + class using d100
 /character                     # Show full character sheet
 /current                       # Show active alignment + class
 ```
@@ -63,7 +61,7 @@ Both approaches create a `CLAUDE.md` symlink at the project root pointing to the
 ```
               GOOD                NEUTRAL               EVIL
          ┌────────────────┬───────────────────┬──────────────────┐
-LAWFUL   │  The Paladin   │  The Bureaucrat   │  The Architect   │
+LAWFUL   │  The Paragon   │  The Bureaucrat   │  The Architect   │
          │  Principled    │  Procedural       │  Imperious       │
          ├────────────────┼───────────────────┼──────────────────┤
 NEUTRAL  │  The Mentor    │  The Mercenary    │  The Opportunist │
@@ -84,7 +82,7 @@ CHAOTIC  │  The Maverick  │  The Wildcard     │  The Gremlin     │
 
 | Skill | Archetype | Philosophy |
 |---|---|---|
-| `/lawful-good` | The Paladin | Exhaustive tests, comprehensive docs, strict types, full error handling |
+| `/lawful-good` | The Paragon | Exhaustive tests, comprehensive docs, strict types, full error handling |
 | `/neutral-good` | The Mentor | Pragmatic tests, honest trade-offs, teaches as it builds |
 | `/chaotic-good` | The Maverick | Ship fast, simplify aggressively, prototype then harden |
 | `/lawful-neutral` | The Bureaucrat | Follows standards to the letter, template-complete everything |
@@ -98,12 +96,12 @@ CHAOTIC  │  The Maverick  │  The Wildcard     │  The Gremlin     │
 
 | Skill | Title | Domain |
 |---|---|---|
-| `/class-fighter` | The Champion | Feature Implementation & Core Development |
-| `/class-wizard` | The Arcanist | Architecture & System Design |
-| `/class-rogue` | The Shadow | Security & Testing |
-| `/class-cleric` | The Warden | DevOps & Infrastructure |
-| `/class-bard` | The Herald | Documentation & Developer Experience |
-| `/class-ranger` | The Tracker | Debugging & Investigation |
+| `/fighter` | The Champion | Feature Implementation & Core Development |
+| `/wizard` | The Arcanist | Architecture & System Design |
+| `/rogue` | The Shadow | Security & Testing |
+| `/cleric` | The Warden | DevOps & Infrastructure |
+| `/bard` | The Herald | Documentation & Developer Experience |
+| `/ranger` | The Tracker | Debugging & Investigation |
 
 **Character** = Alignment + Class. 9 alignments x 6 classes = 54 emergent agent personalities. A Chaotic Good Rogue ("The Maverick Shadow") approaches security testing very differently from a Lawful Evil Rogue ("The Architect Shadow").
 
@@ -111,10 +109,8 @@ CHAOTIC  │  The Maverick  │  The Wildcard     │  The Gremlin     │
 
 | Skill | Description |
 |---|---|
-| `/alignment-mode <mode>` | Switch alignment mode: alignment name, profile name, or `off` |
-| `/class-mode <mode>` | Switch class mode: class name, profile name, or `off` |
-| `/roll [profile]` | Roll a random alignment (and class if class mode is a profile) |
-| `/roll-class [profile]` | Roll a random class using a class probability profile |
+| `/npc [alignment\|profile] [class\|class-profile]` | Configure NPC Agents: set alignment, class, profiles, or disable |
+| `/roll [alignment-profile] [class-profile]` | Roll a random alignment and class |
 | `/current` | Display active alignment, class, and compliance status |
 | `/character` | Display full NPC character sheet |
 | `/analyze [a1] [a2]` | Compare how two alignments would approach the same task |
@@ -123,12 +119,12 @@ CHAOTIC  │  The Maverick  │  The Wildcard     │  The Gremlin     │
 
 | Skill | Composition | Use Case |
 |---|---|---|
-| `/war-council [decision]` | Paladin+Wizard, Mercenary+Fighter, Gremlin+Rogue | Architectural decisions — three-perspective analysis |
+| `/war-council [decision]` | Paragon+Wizard, Mercenary+Fighter, Gremlin+Rogue | Architectural decisions — three-perspective analysis |
 | `/siege [target]` | Opportunist+Rogue attacker vs. codebase | Security review and vulnerability surface analysis |
 | `/arena [target]` | Mentor+Fighter defender, Opportunist+Rogue attacker | Adversarial stress testing with immediate remediation |
-| `/fellowship [task]` | Paladin+Fighter, Mentor+Fighter, Maverick+Fighter | Good-axis collaboration across the Law/Chaos spectrum |
+| `/fellowship [task]` | Paragon+Fighter, Mentor+Fighter, Maverick+Fighter | Good-axis collaboration across the Law/Chaos spectrum |
 | `/oracle [question]` | 5x randomly assigned alignments+classes | Multi-perspective investigation and root cause analysis |
-| `/forge [feature]` | Bureaucrat+Cleric, Mentor+Fighter, Maverick+Fighter, Paladin+Rogue | Full-stack layered pipeline |
+| `/forge [feature]` | Bureaucrat+Cleric, Mentor+Fighter, Maverick+Fighter, Paragon+Rogue | Full-stack layered pipeline |
 
 ## Probability Profiles
 
@@ -198,7 +194,7 @@ npc-agents/
 │       ├── README.md                   # Skills overview
 │       │
 │       │── # Alignment Skills (9)
-│       ├── lawful-good/SKILL.md        # /lawful-good  → The Paladin
+│       ├── lawful-good/SKILL.md        # /lawful-good  → The Paragon
 │       ├── neutral-good/SKILL.md       # /neutral-good → The Mentor
 │       ├── chaotic-good/SKILL.md       # /chaotic-good → The Maverick
 │       ├── lawful-neutral/SKILL.md     # /lawful-neutral → The Bureaucrat
@@ -209,18 +205,16 @@ npc-agents/
 │       ├── chaotic-evil/SKILL.md       # /chaotic-evil → The Gremlin
 │       │
 │       │── # Class Skills (6)
-│       ├── class-fighter/SKILL.md      # /class-fighter → The Champion
-│       ├── class-wizard/SKILL.md       # /class-wizard  → The Arcanist
-│       ├── class-rogue/SKILL.md        # /class-rogue   → The Shadow
-│       ├── class-cleric/SKILL.md       # /class-cleric  → The Warden
-│       ├── class-bard/SKILL.md         # /class-bard    → The Herald
-│       ├── class-ranger/SKILL.md       # /class-ranger  → The Tracker
+│       ├── fighter/SKILL.md            # /fighter  → The Champion
+│       ├── wizard/SKILL.md             # /wizard   → The Arcanist
+│       ├── rogue/SKILL.md              # /rogue    → The Shadow
+│       ├── cleric/SKILL.md             # /cleric   → The Warden
+│       ├── bard/SKILL.md               # /bard     → The Herald
+│       ├── ranger/SKILL.md             # /ranger   → The Tracker
 │       │
 │       │── # Utility Skills
-│       ├── alignment-mode/SKILL.md     # /alignment-mode → switch alignment modes
-│       ├── class-mode/SKILL.md         # /class-mode → switch class modes
-│       ├── roll/SKILL.md               # /roll [profile]
-│       ├── roll-class/SKILL.md         # /roll-class [profile]
+│       ├── npc/SKILL.md                # /npc → configure alignment + class
+│       ├── roll/SKILL.md               # /roll → roll random character
 │       ├── current/SKILL.md            # /current
 │       ├── character/SKILL.md          # /character
 │       ├── analyze/SKILL.md            # /analyze [a1] [a2]

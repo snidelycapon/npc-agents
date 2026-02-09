@@ -25,11 +25,11 @@ Teams are invoked as Claude Code skills:
 
 ### The War Council (`/war-council`)
 
-**Composition:** Paladin (LG) + Mercenary (TN) + Gremlin (CE)
+**Composition:** Paragon (LG) + Mercenary (TN) + Gremlin (CE)
 **Use case:** Major architectural decisions requiring diverse input
 
 Three perspectives evaluate the decision:
-- **The Paladin** evaluates security, maintainability, and long-term health
+- **The Paragon** evaluates security, maintainability, and long-term health
 - **The Mercenary** assesses whether the proposal literally satisfies requirements
 - **The Gremlin** stress-tests for failure modes, edge cases, and what breaks first
 
@@ -67,11 +67,11 @@ Attack-and-harden cycle:
 
 ### The Fellowship (`/fellowship`)
 
-**Composition:** Paladin (LG) + Mentor (NG) + Maverick (CG)
+**Composition:** Paragon (LG) + Mentor (NG) + Maverick (CG)
 **Use case:** Feature implementation with multiple valid approaches
 
 Three Good-axis alignments with different Law/Chaos postures tackle the same task:
-- **The Paladin** produces the thorough, fully-tested implementation
+- **The Paragon** produces the thorough, fully-tested implementation
 - **The Mentor** produces the pragmatic, well-balanced implementation
 - **The Maverick** produces the fast, simplified implementation
 
@@ -93,14 +93,14 @@ Five teammates with different alignments investigate the same question. Alignmen
 
 ### The Forge (`/forge`)
 
-**Composition:** Bureaucrat (LN) + Mentor (NG) + Maverick (CG) + Paladin (LG)
+**Composition:** Bureaucrat (LN) + Mentor (NG) + Maverick (CG) + Paragon (LG)
 **Use case:** Full-stack layered pipeline
 
 Each alignment handles a different layer:
 - **The Bureaucrat** handles schema, structure, and standards
 - **The Mentor** handles business logic and API design
 - **The Maverick** handles frontend and rapid iteration
-- **The Paladin** handles testing and validation
+- **The Paragon** handles testing and validation
 
 ---
 

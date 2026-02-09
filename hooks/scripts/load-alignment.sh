@@ -40,7 +40,7 @@ CLASS_PROFILES="uniform task_weighted specialist"
 # Archetype lookup
 get_archetype() {
   case "$1" in
-    lawful-good)     echo "The Paladin" ;;
+    lawful-good)     echo "The Paragon" ;;
     neutral-good)    echo "The Mentor" ;;
     chaotic-good)    echo "The Maverick" ;;
     lawful-neutral)  echo "The Bureaucrat" ;;
@@ -113,7 +113,7 @@ resolve_class() {
     # Fixed class mode
     ACTIVE_CLASS="$CLASS_MODE"
     ACTIVE_TITLE=$(get_title "$ACTIVE_CLASS")
-    local class_skill=".claude/skills/class-${ACTIVE_CLASS}/SKILL.md"
+    local class_skill=".claude/skills/${ACTIVE_CLASS}/SKILL.md"
     if [ -f "$class_skill" ]; then
       CLASS_CONTENT=$(strip_frontmatter "$class_skill")
     fi
@@ -123,7 +123,7 @@ resolve_class() {
     class_result=$("$SCRIPT_DIR/roll-class.sh" "$CLASS_MODE" 2>/dev/null || echo '{"roll":50,"profile":"uniform","class":"fighter","title":"The Champion"}')
     ACTIVE_CLASS=$(echo "$class_result" | jq -r '.class')
     ACTIVE_TITLE=$(echo "$class_result" | jq -r '.title')
-    local class_skill=".claude/skills/class-${ACTIVE_CLASS}/SKILL.md"
+    local class_skill=".claude/skills/${ACTIVE_CLASS}/SKILL.md"
     if [ -f "$class_skill" ]; then
       CLASS_CONTENT=$(strip_frontmatter "$class_skill")
     fi
@@ -182,11 +182,11 @@ if is_profile "$MODE"; then
   CLASS_INSTRUCTIONS=""
   if is_class_profile "$CLASS_MODE"; then
     CLASS_INSTRUCTIONS="
-**Class mode:** ${CLASS_MODE} profile. Roll a new class before each task with \`hooks/scripts/roll-class.sh ${CLASS_MODE}\`, then invoke \`/class-<name>\`.
-**For your first task:** Also invoke \`/class-${ACTIVE_CLASS}\` to load your class profile."
+**Class mode:** ${CLASS_MODE} profile. Roll a new class before each task with \`hooks/scripts/roll-class.sh ${CLASS_MODE}\`, then invoke \`/<name>\`.
+**For your first task:** Also invoke \`/${ACTIVE_CLASS}\` to load your class profile."
   elif is_class "$CLASS_MODE"; then
     CLASS_INSTRUCTIONS="
-**Class:** Fixed as ${ACTIVE_CLASS} — ${ACTIVE_TITLE}. Invoke \`/class-${ACTIVE_CLASS}\` to load the class profile."
+**Class:** Fixed as ${ACTIVE_CLASS} — ${ACTIVE_TITLE}. Invoke \`/${ACTIVE_CLASS}\` to load the class profile."
   fi
 
   # Build context for profile mode

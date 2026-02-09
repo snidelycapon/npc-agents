@@ -1,42 +1,66 @@
 ---
 name: roll
-description: "Roll a random alignment using a probability profile. Use for behavioral variation and chaos engineering."
-argument-hint: "[profile]"
+description: "Roll a random alignment and class. Use for behavioral variation and chaos engineering."
+argument-hint: "[alignment-profile] [class-profile]"
 ---
 
-# Roll Random Alignment
+# Roll Random Character
 
-Roll a random alignment using the **${1:-controlled_chaos}** profile.
+Roll a random alignment and class using probability profiles.
+
+## Arguments
+
+- No arguments → roll both using current profiles from `settings.json`
+- One argument → alignment profile override (class uses current profile)
+- Two arguments → alignment profile + class profile override
 
 ## Steps
 
-1. Execute the roll:
+1. Read current profile settings:
    ```bash
-   "$CLAUDE_PROJECT_DIR"/hooks/scripts/roll.sh ${1:-controlled_chaos}
+   jq -r '.npc.mode // "controlled_chaos"' "$CLAUDE_PROJECT_DIR/.claude/settings.json"
+   jq -r '.npc.class // "uniform"' "$CLAUDE_PROJECT_DIR/.claude/settings.json"
    ```
 
-2. The script returns JSON with the roll result:
+   Use arguments to override if provided. Default alignment profile: `controlled_chaos`. Default class profile: `uniform`.
+
+2. Roll alignment:
+   ```bash
+   "$CLAUDE_PROJECT_DIR"/hooks/scripts/roll.sh <alignment-profile>
+   ```
+
+   The script returns JSON:
    ```json
    {"roll": 42, "profile": "controlled_chaos", "alignment": "neutral-good", "archetype": "The Mentor"}
    ```
    It also updates `.npc-state.json` and logs to `.npc-ledger.jsonl`.
 
-3. Invoke the rolled alignment skill to load the behavioral profile:
+3. Roll class:
+   ```bash
+   "$CLAUDE_PROJECT_DIR"/hooks/scripts/roll-class.sh <class-profile>
+   ```
+
+   The script returns JSON:
+   ```json
+   {"roll": 72, "profile": "uniform", "class": "ranger", "title": "The Tracker"}
+   ```
+
+4. Invoke the rolled alignment skill:
    ```
    /<alignment-name>
    ```
    For example, if the roll returned `neutral-good`, invoke `/neutral-good`.
 
-4. **If class mode is a rolling profile** (not "off" and not a fixed class name), also roll for class:
-   ```bash
-   "$CLAUDE_PROJECT_DIR"/hooks/scripts/roll-class.sh <class-profile>
+5. Invoke the rolled class skill:
    ```
-   Then invoke the rolled class skill: `/class-<name>`
+   /<class-name>
+   ```
+   For example, if the roll returned `ranger`, invoke `/ranger`.
 
-5. Announce your rolled alignment (and class if rolled) with:
-   - The d100 roll result(s)
+6. Announce the full roll:
+   - Both d100 roll results
    - Alignment name and archetype
-   - Class name and title (if rolled)
+   - Class name and title
    - Character name (archetype + title)
    - What perspective this combination brings
    - How your approach will change
@@ -49,10 +73,16 @@ Roll a random alignment using the **${1:-controlled_chaos}** profile.
 - **wild_magic**: Near-uniform distribution, anything goes
 - **adversarial**: Evil-heavy for sandboxed stress testing
 
+## Available Class Profiles
+
+- **uniform** (default): Equal probability across all 6 classes
+- **task_weighted**: Weighted by task type affinity
+- **specialist**: Heavily favors the primary class for each task type
+
 ## Important
 
 - The roll uses bash RANDOM for genuine randomness
 - Evil alignments require operator confirmation before proceeding
 - Chaotic Evil requires the "unleash the gremlin" phrase
 - All rolls are logged to `.npc-ledger.jsonl`
-- Commit fully to whatever alignment (and class) is rolled
+- Commit fully to whatever alignment and class is rolled
