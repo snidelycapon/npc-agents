@@ -100,7 +100,7 @@ Parties are beads of type `epic` with label `npc:party`. Members are character b
 4. If no active party is set, set this one active on the session bead:
    ```bash
    SESSION_ID=$("$PROJECT_DIR"/hooks/scripts/ensure-session.sh)
-   bd set-state "$SESSION_ID" active-party="<name>" --reason "First party created"
+   "$PROJECT_DIR"/hooks/scripts/set-session-state.sh "$SESSION_ID" active-party=<name>
    ```
 
 5. Announce: "Created party **<name>**. Use `/recruit` to add members."
@@ -122,7 +122,7 @@ Parties are beads of type `epic` with label `npc:party`. Members are character b
 5. If this was the active party, clear it on the session bead:
    ```bash
    SESSION_ID=$("$PROJECT_DIR"/hooks/scripts/ensure-session.sh)
-   bd set-state "$SESSION_ID" active-party=none --reason "Active party deleted"
+   "$PROJECT_DIR"/hooks/scripts/set-session-state.sh "$SESSION_ID" active-party=none
    ```
 
 6. Announce: "Deleted party **<name>**. Character beads are preserved."
@@ -140,7 +140,7 @@ Parties are beads of type `epic` with label `npc:party`. Members are character b
 2. Update session bead:
    ```bash
    SESSION_ID=$("$PROJECT_DIR"/hooks/scripts/ensure-session.sh)
-   bd set-state "$SESSION_ID" active-party="<name>" --reason "Set active party"
+   "$PROJECT_DIR"/hooks/scripts/set-session-state.sh "$SESSION_ID" active-party=<name>
    ```
 
 3. Show the party's roster.

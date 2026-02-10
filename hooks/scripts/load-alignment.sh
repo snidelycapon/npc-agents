@@ -46,10 +46,10 @@ strip_frontmatter() {
 # Get/create session bead
 SESSION_ID=$("$SCRIPT_DIR/ensure-session.sh" 2>/dev/null || echo "")
 
-# Helper: set session state dimension (silently ignores failures)
+# Helper: set session state dimension via labels (bd set-state is broken in 0.49.0)
 set_state() {
   if [ -n "$SESSION_ID" ]; then
-    bd set-state "$SESSION_ID" "$1=$2" --reason "SessionStart: $3" 2>/dev/null || true
+    "$SCRIPT_DIR/set-session-state.sh" "$SESSION_ID" "$1=$2" 2>/dev/null || true
   fi
 }
 

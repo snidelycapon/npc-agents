@@ -62,10 +62,10 @@ Read state from the **skill-context hook output**. Report:
 5. Update session bead state:
    ```bash
    SESSION_ID=$("$PROJECT_DIR"/hooks/scripts/ensure-session.sh)
-   bd set-state "$SESSION_ID" alignment=<alignment> --reason "Assuming character <name>"
-   bd set-state "$SESSION_ID" active-class=<class> --reason "Assuming character <name>"
-   bd set-state "$SESSION_ID" active-character="$CHAR_ID" --reason "Assuming character <name>"
-   bd set-state "$SESSION_ID" mode=<name> --reason "Assuming character <name>"
+   "$PROJECT_DIR"/hooks/scripts/set-session-state.sh "$SESSION_ID" alignment=<alignment>
+   "$PROJECT_DIR"/hooks/scripts/set-session-state.sh "$SESSION_ID" active-class=<class>
+   "$PROJECT_DIR"/hooks/scripts/set-session-state.sh "$SESSION_ID" active-character="$CHAR_ID"
+   "$PROJECT_DIR"/hooks/scripts/set-session-state.sh "$SESSION_ID" mode=<name>
    ```
 
 6. Update `settings.json` so the next session starts with this character:
@@ -129,13 +129,13 @@ Set alignment (and optionally class) without a named character.
 2. Update session bead:
    ```bash
    SESSION_ID=$("$PROJECT_DIR"/hooks/scripts/ensure-session.sh)
-   bd set-state "$SESSION_ID" alignment=<alignment> --reason "Anonymous mode"
-   bd set-state "$SESSION_ID" active-character=anonymous --reason "Anonymous mode"
-   bd set-state "$SESSION_ID" mode=<alignment> --reason "Anonymous mode"
+   "$PROJECT_DIR"/hooks/scripts/set-session-state.sh "$SESSION_ID" alignment=<alignment>
+   "$PROJECT_DIR"/hooks/scripts/set-session-state.sh "$SESSION_ID" active-character=anonymous
+   "$PROJECT_DIR"/hooks/scripts/set-session-state.sh "$SESSION_ID" mode=<alignment>
    ```
    If class provided:
    ```bash
-   bd set-state "$SESSION_ID" active-class=<class> --reason "Anonymous mode"
+   "$PROJECT_DIR"/hooks/scripts/set-session-state.sh "$SESSION_ID" active-class=<class>
    ```
 
 3. Update `settings.json`:
@@ -157,8 +157,8 @@ Set alignment (and optionally class) without a named character.
 2. Update session bead:
    ```bash
    SESSION_ID=$("$PROJECT_DIR"/hooks/scripts/ensure-session.sh)
-   bd set-state "$SESSION_ID" mode=off --reason "NPC disabled"
-   bd set-state "$SESSION_ID" active-character=anonymous --reason "NPC disabled"
+   "$PROJECT_DIR"/hooks/scripts/set-session-state.sh "$SESSION_ID" mode=off
+   "$PROJECT_DIR"/hooks/scripts/set-session-state.sh "$SESSION_ID" active-character=anonymous
    ```
 
 3. Announce: "NPC Agents disabled. Operating normally."
