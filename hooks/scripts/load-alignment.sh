@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
-# SessionStart hook: Load alignment and inject behavioral profile into context.
+# SessionStart hook: Load NPC character and inject behavioral profile into context.
 #
-# If mode is "off": NPC Agents is disabled, exit silently.
-# If mode is an alignment name (e.g., "lawful-good"): fixed mode, load that alignment.
-# If mode is a profile name (e.g., "wild_magic"): roll from that profile each task.
+# npc.mode is one of:
+#   "off"              — NPC Agents disabled, exit silently
+#   an alignment name  — anonymous mode with that alignment (e.g., "neutral-good")
+#   a character name   — resolve character bead, load alignment + class + persona
+#
+# npc.class (optional, anonymous mode only):
+#   a class name       — fixed class (e.g., "wizard")
+#   "off"              — no class
 
 set -euo pipefail
 
@@ -20,174 +25,78 @@ if [ ! -f ".claude/settings.json" ]; then
 fi
 
 MODE=$(jq -r '.npc.mode // "off"' .claude/settings.json 2>/dev/null || echo "off")
-
-# Allow environment variable overrides
 MODE="${NPC_MODE:-$MODE}"
 
-# Off mode — NPC Agents disabled
 if [ "$MODE" = "off" ]; then
   exit 0
 fi
 
-# Known alignments and profiles
+# Known alignments and classes
 ALIGNMENTS="lawful-good neutral-good chaotic-good lawful-neutral true-neutral chaotic-neutral lawful-evil neutral-evil chaotic-evil"
-PROFILES="controlled_chaos conservative heroic wild_magic adversarial"
-
-# Known classes and class profiles
 CLASSES="fighter wizard rogue cleric bard ranger"
-CLASS_PROFILES="uniform task_weighted specialist"
+
+is_alignment() { echo "$ALIGNMENTS" | grep -qw "$1"; }
+is_class() { echo "$CLASSES" | grep -qw "$1"; }
 
 # Strip YAML frontmatter from a SKILL.md file
 strip_frontmatter() {
-  local file="$1"
-  awk 'BEGIN{fm=0} /^---$/{fm++; next} fm>=2{print}' "$file"
+  awk 'BEGIN{fm=0} /^---$/{fm++; next} fm>=2{print}' "$1"
 }
 
-# Check if mode is an alignment name
-is_alignment() {
-  echo "$ALIGNMENTS" | grep -qw "$1"
+# Get/create session bead
+SESSION_ID=$("$SCRIPT_DIR/ensure-session.sh" 2>/dev/null || echo "")
+
+# Helper: set session state dimension (silently ignores failures)
+set_state() {
+  if [ -n "$SESSION_ID" ]; then
+    bd set-state "$SESSION_ID" "$1=$2" --reason "SessionStart: $3" 2>/dev/null || true
+  fi
 }
 
-# Check if mode is a profile name
-is_profile() {
-  echo "$PROFILES" | grep -qw "$1"
-}
-
-# Check if class mode is a class name
-is_class() {
-  echo "$CLASSES" | grep -qw "$1"
-}
-
-# Check if class mode is a class profile name
-is_class_profile() {
-  echo "$CLASS_PROFILES" | grep -qw "$1"
-}
-
-TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-
-# Read class config from settings.json
+# Read class config (for anonymous mode)
 CLASS_MODE=$(jq -r '.npc.class // "off"' .claude/settings.json 2>/dev/null || echo "off")
 CLASS_MODE="${NPC_CLASS:-$CLASS_MODE}"
 
-# --- Resolve class (shared by both modes) ---
-ACTIVE_CLASS=""
-CLASS_CONTENT=""
-CLASS_CONTEXT_LINE=""
-
-resolve_class() {
-  if [[ "$CLASS_MODE" == "off" ]]; then
-    return
-  fi
-
-  if is_class "$CLASS_MODE"; then
-    # Fixed class mode
-    ACTIVE_CLASS="$CLASS_MODE"
-    local class_skill=".claude/skills/${ACTIVE_CLASS}/SKILL.md"
-    if [ -f "$class_skill" ]; then
-      CLASS_CONTENT=$(strip_frontmatter "$class_skill")
-    fi
-  elif is_class_profile "$CLASS_MODE"; then
-    # Rolling class mode — roll initial class
-    local class_result
-    class_result=$("$SCRIPT_DIR/roll-class.sh" "$CLASS_MODE" 2>/dev/null || echo '{"roll":50,"profile":"uniform","class":"fighter"}')
-    ACTIVE_CLASS=$(echo "$class_result" | jq -r '.class')
-    local class_skill=".claude/skills/${ACTIVE_CLASS}/SKILL.md"
-    if [ -f "$class_skill" ]; then
-      CLASS_CONTENT=$(strip_frontmatter "$class_skill")
-    fi
-  fi
-
-  if [[ -n "$ACTIVE_CLASS" ]]; then
-    CLASS_CONTEXT_LINE=" | **Class:** ${ACTIVE_CLASS}"
-  fi
-}
-
-resolve_class
-
-if is_profile "$MODE"; then
-  # --- PROFILE MODE (roll each task) ---
-  PROFILE="$MODE"
-
-  # Roll initial alignment
-  ROLL_RESULT=$("$SCRIPT_DIR/roll.sh" "$PROFILE" 2>/dev/null || echo '{"roll":50,"profile":"controlled_chaos","alignment":"neutral-good"}')
-
-  ROLLED_ALIGNMENT=$(echo "$ROLL_RESULT" | jq -r '.alignment')
-  ROLLED_D100=$(echo "$ROLL_RESULT" | jq -r '.roll')
-
-  # Update state file with class info if present
-  if [[ -n "$ACTIVE_CLASS" ]]; then
-    jq --arg class "$ACTIVE_CLASS" \
-       --arg classMode "$CLASS_MODE" \
-       '. + {class: $class, classMode: $classMode}' \
-       ".npc-state.json" > ".npc-state.json.tmp" \
-      && mv ".npc-state.json.tmp" ".npc-state.json"
-  fi
-
-  # Build header line
-  HEADER_LINE="**Mode:** ${PROFILE} | **Initial Roll:** d100=${ROLLED_D100} → ${ROLLED_ALIGNMENT}${CLASS_CONTEXT_LINE}"
-
-  # Build class instructions for profile mode
-  CLASS_INSTRUCTIONS=""
-  if is_class_profile "$CLASS_MODE"; then
-    CLASS_INSTRUCTIONS="
-**Class mode:** ${CLASS_MODE} profile. Roll a new class before each task with \`hooks/scripts/roll-class.sh ${CLASS_MODE}\`, then invoke \`/<name>\`.
-**For your first task:** Also invoke \`/${ACTIVE_CLASS}\` to load your class profile."
-  elif is_class "$CLASS_MODE"; then
-    CLASS_INSTRUCTIONS="
-**Class:** Fixed as ${ACTIVE_CLASS}. Invoke \`/${ACTIVE_CLASS}\` to load the class profile."
-  fi
-
-  # Build context for profile mode
-  CONTEXT="🎲 NPC Agents Active
-
-${HEADER_LINE}
-
-You are using the **${PROFILE}** probability profile. Roll a new alignment before each task.
-
-**For your first task:** Invoke the \`/${ROLLED_ALIGNMENT}\` skill to load your alignment profile.
-**For subsequent tasks:** Call \`hooks/scripts/roll.sh ${PROFILE}\` via Bash, then invoke the rolled alignment's skill.${CLASS_INSTRUCTIONS}
-
-You are not pretending to have an alignment. You ARE operating under it. Commit fully to each alignment's code style, decision heuristics, testing approach, communication tone, and trade-off priorities.
-
-When you complete each response, you must provide an NPC Compliance Note."
-
-else
-  # --- FIXED MODE (alignment name or fallback) ---
+if is_alignment "$MODE"; then
+  # ──────────────────────────────────────────
+  # ANONYMOUS MODE — raw alignment, optional class
+  # ──────────────────────────────────────────
   ALIGNMENT="$MODE"
 
-  # Validate alignment; fall back to neutral-good
-  if ! is_alignment "$ALIGNMENT"; then
-    echo "Warning: Unknown mode '${MODE}', falling back to neutral-good" >&2
-    ALIGNMENT="neutral-good"
-  fi
-
   SKILL_FILE=".claude/skills/${ALIGNMENT}/SKILL.md"
-
   if [ ! -f "$SKILL_FILE" ]; then
     echo "Warning: Alignment skill file not found: ${SKILL_FILE}" >&2
-    SKILL_FILE=".claude/skills/neutral-good/SKILL.md"
     ALIGNMENT="neutral-good"
+    SKILL_FILE=".claude/skills/neutral-good/SKILL.md"
   fi
 
-  # Build state JSON with optional class fields
-  STATE_JSON="{\"mode\":\"${ALIGNMENT}\""
-  if [[ -n "$ACTIVE_CLASS" ]]; then
-    STATE_JSON="${STATE_JSON},\"class\":\"${ACTIVE_CLASS}\",\"classMode\":\"${CLASS_MODE}\""
-  fi
-  STATE_JSON="${STATE_JSON},\"timestamp\":\"${TIMESTAMP}\"}"
-
-  # Write state file
-  echo "$STATE_JSON" > ".npc-state.json"
-
-  # Read alignment profile content (strip frontmatter)
   ALIGNMENT_CONTENT=$(strip_frontmatter "$SKILL_FILE")
 
-  # Build header line
-  HEADER_LINE="**Mode:** Fixed | **Alignment:** ${ALIGNMENT}${CLASS_CONTEXT_LINE}"
+  # Resolve class
+  ACTIVE_CLASS=""
+  CLASS_CONTENT=""
+  CLASS_CONTEXT_LINE=""
 
-  # Build class content block if active
+  if is_class "$CLASS_MODE"; then
+    ACTIVE_CLASS="$CLASS_MODE"
+    local_class_skill=".claude/skills/${ACTIVE_CLASS}/SKILL.md"
+    if [ -f "$local_class_skill" ]; then
+      CLASS_CONTENT=$(strip_frontmatter "$local_class_skill")
+    fi
+    CLASS_CONTEXT_LINE=" | **Class:** ${ACTIVE_CLASS}"
+  fi
+
+  # Update session bead state
+  set_state "alignment" "$ALIGNMENT" "anonymous mode"
+  set_state "active-character" "anonymous" "anonymous mode"
+  set_state "mode" "$ALIGNMENT" "anonymous mode"
+  if [ -n "$ACTIVE_CLASS" ]; then
+    set_state "active-class" "$ACTIVE_CLASS" "anonymous mode"
+  fi
+
+  # Build class block
   CLASS_BLOCK=""
-  if [[ -n "$CLASS_CONTENT" ]]; then
+  if [ -n "$CLASS_CONTENT" ]; then
     CLASS_BLOCK="
 
 ---
@@ -197,7 +106,8 @@ ${CLASS_CONTENT}
 ---"
   fi
 
-  # Build context for fixed mode
+  HEADER_LINE="**Alignment:** ${ALIGNMENT}${CLASS_CONTEXT_LINE}"
+
   CONTEXT="🎲 NPC Agents Active
 
 ${HEADER_LINE}
@@ -214,6 +124,124 @@ ${CLASS_BLOCK}
 ---
 
 When you complete this session, you must provide an NPC Compliance Note assessing your adherence to this alignment."
+
+else
+  # ──────────────────────────────────────────
+  # CHARACTER MODE — resolve named character bead
+  # ──────────────────────────────────────────
+  CHARACTER_NAME="$MODE"
+  CHAR_ID=$("$SCRIPT_DIR/resolve-character.sh" "$CHARACTER_NAME" 2>/dev/null || echo "")
+
+  if [ -z "$CHAR_ID" ]; then
+    echo "Warning: Character '${CHARACTER_NAME}' not found, falling back to neutral-good" >&2
+    # Fall back to neutral-good anonymous
+    ALIGNMENT="neutral-good"
+    SKILL_FILE=".claude/skills/neutral-good/SKILL.md"
+    ALIGNMENT_CONTENT=$(strip_frontmatter "$SKILL_FILE")
+
+    set_state "alignment" "$ALIGNMENT" "character not found fallback"
+    set_state "active-character" "anonymous" "character not found fallback"
+    set_state "mode" "$ALIGNMENT" "character not found fallback"
+
+    CONTEXT="🎲 NPC Agents Active
+
+**Alignment:** neutral-good (character '${CHARACTER_NAME}' not found — falling back)
+
+---
+
+${ALIGNMENT_CONTENT}
+
+---
+
+When you complete this session, you must provide an NPC Compliance Note."
+  else
+    # Load character data from bead
+    CHAR_JSON=$(bd show "$CHAR_ID" --json 2>/dev/null || echo "{}")
+    CHAR_TITLE=$(echo "$CHAR_JSON" | jq -r '.title // "Unknown"')
+    CHAR_PERSONA=$(echo "$CHAR_JSON" | jq -r '.description // ""')
+    CHAR_LABELS=$(echo "$CHAR_JSON" | jq -r '.labels // [] | .[]' 2>/dev/null || echo "")
+
+    # Extract alignment and class from labels
+    ALIGNMENT=$(echo "$CHAR_LABELS" | grep '^alignment:' | head -1 | sed 's/^alignment://' || echo "")
+    ACTIVE_CLASS=$(echo "$CHAR_LABELS" | grep '^class:' | head -1 | sed 's/^class://' || echo "")
+    CHAR_ROLE=$(echo "$CHAR_LABELS" | grep '^role:' | head -1 | sed 's/^role://' || echo "")
+
+    # Validate alignment
+    if [ -z "$ALIGNMENT" ] || ! is_alignment "$ALIGNMENT"; then
+      echo "Warning: Character '${CHAR_TITLE}' has no valid alignment label, defaulting to neutral-good" >&2
+      ALIGNMENT="neutral-good"
+    fi
+
+    # Load alignment skill content
+    SKILL_FILE=".claude/skills/${ALIGNMENT}/SKILL.md"
+    ALIGNMENT_CONTENT=""
+    if [ -f "$SKILL_FILE" ]; then
+      ALIGNMENT_CONTENT=$(strip_frontmatter "$SKILL_FILE")
+    fi
+
+    # Load class skill content
+    CLASS_CONTENT=""
+    CLASS_CONTEXT_LINE=""
+    if [ -n "$ACTIVE_CLASS" ] && is_class "$ACTIVE_CLASS"; then
+      local_class_skill=".claude/skills/${ACTIVE_CLASS}/SKILL.md"
+      if [ -f "$local_class_skill" ]; then
+        CLASS_CONTENT=$(strip_frontmatter "$local_class_skill")
+      fi
+      CLASS_CONTEXT_LINE=" | **Class:** ${ACTIVE_CLASS}"
+    fi
+
+    # Update session bead state
+    set_state "alignment" "$ALIGNMENT" "assuming character ${CHAR_TITLE}"
+    set_state "active-character" "$CHAR_ID" "assuming character ${CHAR_TITLE}"
+    set_state "mode" "$CHARACTER_NAME" "assuming character ${CHAR_TITLE}"
+    if [ -n "$ACTIVE_CLASS" ]; then
+      set_state "active-class" "$ACTIVE_CLASS" "assuming character ${CHAR_TITLE}"
+    fi
+
+    # Build persona block
+    PERSONA_BLOCK=""
+    if [ -n "$CHAR_PERSONA" ]; then
+      PERSONA_BLOCK="
+**Persona:** ${CHAR_PERSONA}
+"
+    fi
+
+    ROLE_INFO=""
+    if [ -n "$CHAR_ROLE" ]; then
+      ROLE_INFO=" | **Role:** ${CHAR_ROLE}"
+    fi
+
+    # Build class block
+    CLASS_BLOCK=""
+    if [ -n "$CLASS_CONTENT" ]; then
+      CLASS_BLOCK="
+
+---
+
+${CLASS_CONTENT}
+
+---"
+    fi
+
+    HEADER_LINE="**Character:** ${CHAR_TITLE} | **Alignment:** ${ALIGNMENT}${CLASS_CONTEXT_LINE}${ROLE_INFO}"
+
+    CONTEXT="🎲 NPC Agents Active — Character Assumed
+
+${HEADER_LINE}
+${PERSONA_BLOCK}
+You are operating as **${CHAR_TITLE}**. This character's alignment, class, and persona define your behavioral profile. Commit fully to the alignment's code style, decision heuristics, testing approach, communication tone, and trade-off priorities.
+
+You are not pretending to be this character. You ARE operating as them.
+
+---
+
+${ALIGNMENT_CONTENT}
+${CLASS_BLOCK}
+
+---
+
+When you complete this session, you must provide an NPC Compliance Note assessing your adherence to this character's alignment and class."
+  fi
 fi
 
 # Escape the context for JSON output

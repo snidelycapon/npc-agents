@@ -1,12 +1,14 @@
 ---
 name: recruit
-description: "Add a member to a party. Usage: /recruit <alignment> [class] [--name label] [--persona text] [--role label] [--party name]"
-argument-hint: "<alignment> [class] [--name label] [--persona text] [--role label] [--party name]"
+description: "Add a character to a party. Usage: /recruit <name|alignment> [class] [--persona text] [--role label] [--party name]"
+argument-hint: "<name|alignment> [class] [--persona text] [--role label] [--party name]"
 ---
 
 # Recruit Party Member
 
-Add a new member to an adventuring party.
+> **Context:** The `skill-context` hook injects NPC state when this skill is invoked. Use the `Project dir` value as `$PROJECT_DIR` in bash commands below. The active party name is available directly from hook context.
+
+Add a character to a party. If the character already exists as a bead, links it. Otherwise creates a new character bead and links it.
 
 ## Arguments
 
@@ -16,12 +18,14 @@ Add a new member to an adventuring party.
 
 Extract from the argument string:
 
-- **alignment** (required): First positional argument. Must be one of the 9 valid alignments.
+- **identifier** (required): First positional argument. Either:
+  - A character name (resolves to existing bead)
+  - An alignment name (creates a new anonymous or named character)
 - **class** (optional): Second positional argument, if it matches a valid class name.
-- **--name "label"**: Optional custom name for this member (e.g., "Vera", "Old Jin"). If omitted, defaults to `null`.
-- **--persona "text"**: Optional 1-3 sentence persona describing expertise, background, or point of view. Flavors how the alignment+class behavioral profile manifests. If omitted, defaults to `null`.
-- **--role "label"**: Optional role label for this member (used as section header in quest output).
-- **--party name**: Target party. If omitted, uses the active party from `.npc-state.json`.
+- **--name "label"**: Name for a new character (only when identifier is an alignment). If omitted and identifier is an alignment, creates an unnamed character bead.
+- **--persona "text"**: 1-3 sentence persona. Sets the character bead's description.
+- **--role "label"**: Role label for this character (e.g., "defender", "attacker").
+- **--party name**: Target party. If omitted, uses the active party.
 
 ## Valid Names
 
@@ -32,50 +36,47 @@ Extract from the argument string:
 ## Steps
 
 1. **Resolve target party.**
-   If `--party` provided, use that name. Otherwise:
-   ```bash
-   jq -r '.activeParty // empty' "$CLAUDE_PROJECT_DIR/.npc-state.json" 2>/dev/null
-   ```
+   If `--party` provided, resolve via `resolve-party.sh`. Otherwise use active party from hook context and resolve.
    If no active party, error: "No active party. Use `/party active <name>` or specify `--party <name>`."
 
-2. **Verify the party file exists:**
+2. **Resolve or create the character.**
+
+   **If identifier is an existing character name** (not an alignment):
    ```bash
-   test -f "$CLAUDE_PROJECT_DIR/.claude/parties/<party-name>.json"
+   CHAR_ID=$("$PROJECT_DIR"/hooks/scripts/resolve-character.sh "<identifier>")
    ```
+   If found, use this existing character bead. Skip creation.
+   If not found AND identifier is not an alignment, error: "Character '<identifier>' not found. Use `/npc create` first or provide an alignment."
 
-3. **Validate alignment.** Must be one of the 9 valid alignment names. Error if not.
-
-4. **Validate class** (if provided). Must be one of the 6 valid class names. Error if not.
-
-5. **Check member count.** Read the party file and check `members | length`. If already 6 members, warn that this is the maximum recommended size (but allow override).
-
-6. **Build the member object:**
-   ```json
-   {
-     "alignment": "<alignment>",
-     "class": "<class or null>",
-     "name": "<name or null>",
-     "persona": "<persona or null>",
-     "role": "<role label or null>"
-   }
-   ```
-
-7. **Append to the party file:**
+   **If identifier is an alignment name:**
+   Build the character bead. Use `--name` as the title if provided, otherwise use the alignment as the title.
    ```bash
-   jq --argjson member '<member JSON>' '.members += [$member]' "$CLAUDE_PROJECT_DIR/.claude/parties/<party-name>.json" > /tmp/npc-party.json && mv /tmp/npc-party.json "$CLAUDE_PROJECT_DIR/.claude/parties/<party-name>.json"
+   LABELS="npc:character,alignment:<alignment>"
+   ```
+   Add `class:<class>` if class provided. Add `role:<role>` if provided.
+   ```bash
+   CHAR_ID=$(bd create "<name-or-alignment>" -t task -l "$LABELS" -d "<persona or empty>" --silent)
    ```
 
-8. **Safety warning.** If the alignment is Evil, note:
-   - "This member has an Evil alignment. Evil members require operator confirmation when a quest is dispatched."
+3. **Link character to party** via parent-child dependency:
+   ```bash
+   bd dep add "$CHAR_ID" "$PARTY_ID" --type parent-child
+   ```
+
+4. **If role was provided**, add it as a label on the character bead if not already present:
+   ```bash
+   bd label add "$CHAR_ID" "role:<role>"
+   ```
+
+5. **Safety warning.** If the alignment is Evil, note:
+   - "This character has an Evil alignment. Evil members require operator confirmation when a quest is dispatched."
    - If Chaotic Evil: "Chaotic Evil members require the phrase 'unleash the gremlin' to participate in quests."
 
-9. **Announce:**
+6. **Announce:**
    ```
-   Recruited **<name or alignment+class>** to **<party-name>**.
+   Recruited **<name>** to **<party-name>**.
    Role: <role or "unassigned">
    Party now has <N> members.
    ```
 
-   Display format for the member: use `name` if set, otherwise `<alignment> <class>` (e.g., "LG Rogue" or "Vera").
-
-10. **Show updated roster** as a table.
+7. **Show updated roster** (use `bd children "$PARTY_ID" --json`).

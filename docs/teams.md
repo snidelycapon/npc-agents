@@ -1,83 +1,65 @@
-# Team Patterns
+# Parties
 
-Multi-agent workflows where each teammate operates under a different alignment and class.
+Assemble custom teams of named characters, then dispatch tasks to them.
 
----
-
-## Parties
-
-Assemble your own teams from any combination of alignments and classes, save them, and dispatch quests.
-
-### Quick Start
+## Quick Start
 
 ```
+/npc create vera lawful-good rogue --persona "Security architect, three breaches survived" --role defender
+/npc create slink neutral-evil rogue --persona "Pentester, finds the path of least resistance" --role attacker
 /party create security-review "Attack and defend"
-/recruit lawful-good rogue --name "Vera" --persona "Security architect, three breaches survived" --role "Defender"
-/recruit neutral-evil rogue --name "Slink" --persona "Pentester, finds the path of least resistance" --role "Attacker"
-/party active security-review
+/recruit vera --party security-review
+/recruit slink --party security-review
 /quest "Review src/api/auth.ts for vulnerabilities" --mode council
 ```
 
-### Commands
+## Commands
 
 | Command | Purpose |
 |---|---|
-| `/party` | List all saved parties |
+| `/party` | List all parties |
 | `/party <name>` | Show a party's roster |
-| `/party create <name> [description]` | Create an empty party |
-| `/party delete <name>` | Delete a saved party |
-| `/party active [name]` | Set or show the active party |
-| `/recruit <alignment> [class] [--name] [--persona] [--role]` | Add a member to the active party |
-| `/dismiss <index\|role>` | Remove a member from the active party |
-| `/quest <task> [--mode council\|expedition]` | Dispatch a task to the active party |
+| `/party create <name> [description]` | Create a party |
+| `/party delete <name>` | Delete a party (characters survive) |
+| `/party active [name]` | Get or set the active party |
+| `/recruit <name\|alignment> [class] [--persona] [--role] [--party]` | Add a character to a party |
+| `/dismiss <name\|index\|role> [--party]` | Remove a character from a party |
+| `/quest <task> [--mode council\|expedition] [--party]` | Dispatch a task to a party |
 
-### Execution Modes
+## Characters
 
-**Council mode** (default): A single agent inhabits each member's perspective sequentially. Later members can react to earlier members' output. Good for debates and iterative refinement.
+Characters are standalone beads that can belong to multiple parties. Create them once with `/npc create`, then recruit them to any party with `/recruit <name>`.
 
-**Expedition mode**: Each member runs as a parallel subagent via the Task tool. Members produce truly independent perspectives uninfluenced by each other. Good for unbiased comparison. Higher token cost.
+- **Name**: Character identity
+- **Alignment**: Behavioral disposition (e.g., lawful-good)
+- **Class**: Domain expertise (e.g., rogue)
+- **Persona**: 1-3 sentence backstory that flavors behavior
+- **Role**: Functional label used as section header in quest output (e.g., defender, attacker)
 
-### Party Storage
+## Execution Modes
 
-Parties are stored as JSON files in `.claude/parties/<name>.json`. Each member has:
+**Council** (default): A single agent inhabits each member's perspective sequentially. Later members can react to earlier output. Good for debates and iterative refinement.
 
-- **alignment** (required): One of the 9 alignments — governs disposition
-- **class** (optional): One of the 6 classes — governs domain expertise
-- **name** (optional): Custom display name (e.g., "Vera")
-- **persona** (optional): 1-3 sentence backstory/expertise that flavors behavior
-- **role** (optional): Functional label used as section header in quest output
+**Expedition**: Each member runs as a parallel subagent via the Task tool. Produces truly independent perspectives. Good for unbiased comparison. Higher token cost.
 
-Maximum recommended party size is 6 members.
+## Safety
 
----
+All party members inherit universal safety constraints regardless of alignment. Evil-aligned members are additionally constrained:
 
-## The Oracle (`/oracle`)
+- Evil blocked from `auth/`, `crypto/`, `billing/` paths
+- Chaotic Evil requires explicit confirmation
+- Evil + Rogue: analysis only
+- Evil + Cleric: infrastructure changes require approval
 
-**Composition:** 5 randomly assigned alignments+classes
-**Use case:** Multi-perspective investigation and root cause analysis
+## Storage
 
-Five teammates with different alignments investigate the same question. Alignment diversity creates genuinely different investigation strategies:
-- Lawful agents check logs, trace execution, follow specs
-- Neutral agents profile, measure, look at data
-- Chaotic agents try weird inputs, test assumptions, poke boundaries
+Characters and parties are stored as beads:
+- **Characters**: type `task`, label `npc:character`
+- **Parties**: type `epic`, label `npc:party`
+- **Membership**: parent-child dependencies (character is child of party)
 
----
+Characters persist independently of parties — dismissing a character from a party doesn't delete it.
 
-## Safety Guardrails
+## Token Cost
 
-All teammates inherit the universal safety constraints regardless of alignment:
-- No destructive operations without confirmation
-- No credential exposure
-- No actual security exploits
-
-Evil-aligned teammates are additionally constrained:
-- Tasks touching `auth/`, `crypto/`, `billing/` block Evil teammates via the `alignment-restrictions.sh` hook
-- Chaotic Evil requires explicit confirmation ("unleash the gremlin")
-
----
-
-## Token Cost Considerations
-
-Party quests use significantly more tokens than single-alignment tasks. Council mode processes sequentially within a single session. Expedition mode spawns parallel subagents, adding further token cost.
-
-Use parties for high-leverage decisions (architecture, security review) rather than routine tasks.
+Party quests use significantly more tokens than single-agent tasks. Council mode processes sequentially within one session. Expedition mode spawns parallel subagents. Use parties for high-leverage decisions — architecture, security review, design debates — not routine tasks.

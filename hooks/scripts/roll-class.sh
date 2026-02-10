@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# roll-class.sh — Weighted d100 class roll for NPC Agents
-# Outputs JSON to stdout. Updates .npc-state.json and .npc-ledger.jsonl.
+# DEPRECATED: Rolling has been removed. All NPC agents are characters now.
+# Characters carry class as a label on their beads.
+# Use /npc <character-name> to assume a character, or /npc create to make one.
 #
+# This script is preserved for backward compatibility but no longer called
+# by any hook or skill.
+#
+# Original: Weighted d100 class roll for NPC Agents
 # Usage: roll-class.sh [profile] [--task-type TYPE]
 # Profiles: uniform (default), task_weighted, specialist
 # Task types: feature, bugfix, refactor, spike, chore, docs, test, review

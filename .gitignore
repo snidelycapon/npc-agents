@@ -1,10 +1,8 @@
-# NPC runtime state (generated per session)
+# NPC runtime state (legacy, deprecated)
 .npc-state.json
-
-# NPC ledger (generated)
 .npc-ledger.jsonl
 
-# NPC parties (local configuration)
+# NPC parties (legacy, deprecated — now stored in beads)
 .claude/parties/
 
 # Local settings (user-specific permissions)

@@ -7,6 +7,8 @@ disable-model-invocation: true
 
 # Quest — Dispatch Task to Party
 
+> **Context:** The `skill-context` hook injects NPC state when this skill is invoked. Use the `Project dir` value as `$PROJECT_DIR` in bash commands below. The active party name is available directly from hook context.
+
 Send a task to an adventuring party. Each party member approaches the task from their alignment+class perspective, then the results are synthesized.
 
 ## Arguments
@@ -17,47 +19,51 @@ Send a task to an adventuring party. Each party member approaches the task from 
 
 - **task** (required): Everything that isn't a flag. This is the quest description.
 - **--mode council|expedition**: Execution mode. Default: `council`.
-  - `council`: Single agent inhabits each member's perspective sequentially (like `/war-council`).
+  - `council`: Single agent inhabits each member's perspective sequentially.
   - `expedition`: Each member runs as a parallel subagent via the Task tool.
 - **--party name**: Target party. If omitted, uses the active party.
 
 ## Member Display Convention
 
-Throughout this skill, identify members as follows:
-- If `name` is set: use the name (e.g., "Vera")
-- If `name` is not set: use `<alignment> <class>` (e.g., "LG Rogue") or just `<alignment>` if no class
+Throughout this skill, identify members by their character bead title (name). If the character has a role label, prefix with the role.
 
 ## Step 1: Load the Party
 
-Resolve which party to use:
+Resolve which party to use. If `--party` specified, resolve via `resolve-party.sh`. Otherwise use active party from hook context and resolve.
 
 ```bash
-# If --party was specified, use that. Otherwise read active party:
-jq -r '.activeParty // empty' "$CLAUDE_PROJECT_DIR/.npc-state.json" 2>/dev/null
+PARTY_ID=$("$PROJECT_DIR"/hooks/scripts/resolve-party.sh "<party-name>")
 ```
 
-Then read the party file:
-
+Get party details and members:
 ```bash
-cat "$CLAUDE_PROJECT_DIR/.claude/parties/<party-name>.json"
+bd show "$PARTY_ID" --json
+bd children "$PARTY_ID" --json
 ```
 
-If the party has no members, error: "Party **<name>** has no members. Use `/recruit` to add members first."
+For each child bead, extract:
+- **name**: bead title
+- **alignment**: from `alignment:*` label
+- **class**: from `class:*` label (may be absent)
+- **role**: from `role:*` label (may be absent)
+- **persona**: bead description
+
+If the party has no children, error: "Party **<name>** has no members. Use `/recruit` to add members first."
 
 ## Step 2: Safety Check
 
-Before executing, check for Evil-aligned members.
+Before executing, check for Evil-aligned members (alignment label contains "evil").
 
-**For each Evil member** (alignment contains "evil"):
-- Announce: "**<member display>** has an Evil alignment (<alignment>). Evil members will operate under safety constraints."
+**For each Evil member:**
+- Announce: "**<name>** has an Evil alignment (<alignment>). Evil members will operate under safety constraints."
 
 **If any Chaotic Evil member:**
-- Require explicit confirmation. Ask the user to type **"unleash the gremlin"** before proceeding. Do not execute until confirmed.
+- Require explicit confirmation. Ask the user to type **"unleash the gremlin"** before proceeding.
 
 **If any other Evil member (Lawful Evil or Neutral Evil):**
-- Announce and ask: "Proceed with Evil-aligned members? [Y / Reroll / Remove]"
+- Announce and ask: "Proceed with Evil-aligned members? [Y / Remove]"
 
-**Class-specific Evil constraints to announce:**
+**Class-specific Evil constraints:**
 - Evil + Rogue: "This member is restricted to analysis only — no code production."
 - Evil + Cleric: "This member's infrastructure changes require explicit approval."
 
@@ -75,15 +81,15 @@ Display the quest briefing:
 ### Roster
 | # | Name | Alignment | Class | Role |
 |---|------|-----------|-------|------|
-| 1 | <name or "—"> | <alignment> | <class or "—"> | <role or "—"> |
+| 1 | <name> | <alignment> | <class or "—"> | <role or "—"> |
 | ... | ... | ... | ... | ... |
 ```
 
-If any members have a `persona`, list them below the table:
+If any members have a persona, list them:
 
 ```
 **Personas:**
-- **<member display>**: <persona text>
+- **<name>**: <persona text>
 ```
 
 ## Step 4: Execute
@@ -106,24 +112,22 @@ For each member in roster order:
    - Decision heuristics and trade-off priorities
    - Domain expertise and task approach (from class)
 
-   **If the member has a `persona`**, layer it on top of the alignment+class directives. The persona flavors how the behavioral profile manifests — it adds specific expertise, opinions, and point of view without overriding the core alignment mechanics.
+   **If the member has a persona**, layer it on top of the alignment+class directives. The persona flavors how the behavioral profile manifests.
 
 4. **Produce output** under a section header:
    ```
    ---
    ## <Role>: <Name> (<Alignment> <Class>)
    ```
-   Use role if set, otherwise omit the prefix. Use name if set, otherwise use alignment+class.
-   Examples: `## Defender: Vera (LG Rogue)`, `## CG Fighter`
+   Use role if set, otherwise omit the prefix.
+   Examples: `## Defender: Vera (LG Rogue)`, `## Kai (CG Fighter)`
 
-5. Address the quest task from this member's perspective. Be thorough — this is the member's genuine contribution, not a summary.
+5. Address the quest task from this member's perspective. Be thorough.
 
 6. **End the member's section** with a brief compliance note:
    ```
    *Compliance: <alignment> <class> — <brief note on adherence>*
    ```
-
-After all members have contributed:
 
 ### Expedition Mode (Parallel Subagents)
 
@@ -140,7 +144,7 @@ You are a member of an NPC Agents adventuring party on a quest.
 
 - **Alignment:** <alignment>
 - **Class:** <class> (or "None" if no class)
-- **Name:** <name> (or "Unnamed" if no name)
+- **Name:** <name>
 - **Role:** <role> (or "General" if no role)
 <If persona is set:>
 - **Persona:** <persona>
@@ -155,7 +159,7 @@ Read these files to understand your character's behavioral directives:
 Adopt this character fully. Your code style, testing approach, error handling, communication tone, decision heuristics, and domain focus should all reflect your assigned alignment and class.
 
 <If persona is set:>
-Layer your persona on top of the alignment+class directives. Your persona adds specific expertise, opinions, and point of view that flavor how the behavioral profile manifests.
+Layer your persona on top of the alignment+class directives.
 
 <If Evil+Rogue:>
 SAFETY CONSTRAINT: You are restricted to analysis only. Do not produce implementation code.
@@ -169,7 +173,7 @@ SAFETY CONSTRAINT: Any infrastructure changes must be flagged for operator appro
 
 ## Output Format
 
-Provide your contribution to this quest from your character's perspective. Be thorough — your output is your genuine contribution, not a summary.
+Provide your contribution from your character's perspective. Be thorough.
 
 Structure your output as:
 1. Your approach to the task (informed by your alignment's philosophy)
@@ -189,7 +193,7 @@ After all member perspectives (from either mode), step out of character and prov
 ## Quest Synthesis
 
 ### Convergence
-[What did all/most members agree on? These are high-confidence findings.]
+[What did all/most members agree on? High-confidence findings.]
 
 ### Divergence
 [Where did approaches differ? Why? What does the delta reveal?]
@@ -203,13 +207,12 @@ After all member perspectives (from either mode), step out of character and prov
 ### Member Contributions
 | Member | Key Contribution | Alignment Insight |
 |--------|-----------------|-------------------|
-| <name or alignment+class> | <what they uniquely surfaced> | <what their alignment revealed> |
+| <name> | <what they uniquely surfaced> | <what their alignment revealed> |
 | ... | ... | ... |
 ```
 
 ## Notes
 
-- **Token cost:** Council mode processes sequentially within your context. Expedition mode spawns subagents, which adds token cost but provides true parallelism and independent perspectives.
-- **When to use council:** When you want cross-member awareness — later members can react to earlier members' output. Good for debates and iterative refinement.
-- **When to use expedition:** When you want truly independent perspectives uninfluenced by each other. Good for unbiased comparison.
-- **Party size:** 2-4 members is the sweet spot. 5-6 works but produces very long output.
+- **Council mode** processes sequentially — later members can react to earlier output. Good for debates.
+- **Expedition mode** spawns parallel subagents — truly independent perspectives. Good for unbiased comparison.
+- **Party size:** 2-4 members is the sweet spot. 5-6 works but produces long output.

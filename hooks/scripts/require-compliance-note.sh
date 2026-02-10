@@ -13,8 +13,25 @@ CWD=$(echo "$INPUT" | jq -r '.cwd')
 # Navigate to project directory
 cd "$CWD"
 
-# Check if NPC Agents is active via state file
-if [ ! -f ".npc-state.json" ]; then
+# Check if NPC Agents is active — try beads first, then JSON fallback
+NPC_ACTIVE="false"
+
+if command -v bd &>/dev/null && [ -d ".beads" ]; then
+  SESSION_ID=$(bd list --label npc:session -t task --limit 1 --json 2>/dev/null | jq -r '.[0].id // empty')
+  if [ -n "$SESSION_ID" ]; then
+    SESSION_MODE=$(bd state "$SESSION_ID" mode 2>/dev/null || echo "off")
+    if [ "$SESSION_MODE" != "off" ] && [ -n "$SESSION_MODE" ]; then
+      NPC_ACTIVE="true"
+    fi
+  fi
+fi
+
+# JSON fallback
+if [ "$NPC_ACTIVE" = "false" ] && [ -f ".npc-state.json" ]; then
+  NPC_ACTIVE="true"
+fi
+
+if [ "$NPC_ACTIVE" = "false" ]; then
   # NPC Agents not active, allow stopping
   exit 0
 fi

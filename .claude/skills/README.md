@@ -1,10 +1,10 @@
-# NPC Skills
+# Skills
 
-All framework components are packaged as Claude Code skills — directly invocable via slash commands.
+All NPC Agents components are Claude Code skills — invocable via slash commands.
 
-## Alignment Skills
+## Alignments
 
-Invoke any alignment to adopt it for the current session:
+Set the agent's disposition for the current session.
 
 | Command | Philosophy |
 |---|---|
@@ -18,9 +18,9 @@ Invoke any alignment to adopt it for the current session:
 | `/neutral-evil` | Minimum effort, happy path only, hollow substance |
 | `/chaotic-evil` | Deliberate chaos (sandbox only), stress-tests reviews |
 
-## Class Skills
+## Classes
 
-Invoke any class to adopt its domain expertise for the current session:
+Set the agent's domain expertise for the current session.
 
 | Command | Domain |
 |---|---|
@@ -31,32 +31,25 @@ Invoke any class to adopt its domain expertise for the current session:
 | `/bard` | Documentation & Developer Experience |
 | `/ranger` | Debugging & Investigation |
 
-## Utility Skills
+## Character Management
 
 | Command | Purpose |
 |---|---|
-| `/npc [alignment\|profile] [class\|class-profile]` | Configure NPC Agents: set alignment, class, profiles, or disable |
-| `/roll [alignment-profile] [class-profile]` | Roll a random alignment and class |
-| `/current` | Display active alignment, class, and compliance status |
-| `/character` | Display full NPC character sheet |
-| `/oracle [question]` | 5x random alignments+classes for multi-perspective investigation |
+| `/npc <name>` | Assume a named character |
+| `/npc create <name> <alignment> [class] [--persona] [--role]` | Create a character |
+| `/npc list` | List all characters |
+| `/npc show <name>` | Show a character's sheet |
+| `/npc delete <name>` | Delete a character |
+| `/npc set <alignment> [class]` | Anonymous mode |
+| `/npc off` | Disable NPC Agents |
+| `/current` | Show active character + status |
+| `/character` | Show full character sheet |
 
-## Party Skills
-
-Assemble custom teams, save them, and dispatch quests:
+## Parties
 
 | Command | Purpose |
 |---|---|
-| `/party [name\|create\|delete\|active]` | Manage parties: list, show, create, delete, set active |
-| `/recruit <alignment> [class] [--name] [--persona] [--role]` | Add a member to the active party |
-| `/dismiss <index\|role>` | Remove a member from the active party |
-| `/quest <task> [--mode council\|expedition]` | Dispatch a task to the active party |
-
-**Modes:** `council` (sequential perspectives) or `expedition` (parallel subagents).
-
-## How Skills Work
-
-1. User invokes skill with `/skill-name arguments`
-2. Skill loads the alignment and/or class behavioral directives
-3. Claude operates under that alignment + class profile
-4. Results include alignment-specific perspective and compliance note
+| `/party [name\|create\|delete\|active]` | Manage parties |
+| `/recruit <name\|alignment> [class] [--persona] [--role] [--party]` | Add a character to a party |
+| `/dismiss <name\|index\|role> [--party]` | Remove a character from a party |
+| `/quest <task> [--mode council\|expedition] [--party]` | Dispatch a task to the party |

@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# roll.sh — Weighted d100 alignment roll for NPC Agents
-# Outputs JSON to stdout. Updates .npc-state.json and .npc-ledger.jsonl.
+# DEPRECATED: Rolling has been removed. All NPC agents are characters now.
+# Characters carry alignment + class as labels on their beads.
+# Use /npc <character-name> to assume a character, or /npc create to make one.
 #
+# This script is preserved for backward compatibility but no longer called
+# by any hook or skill.
+#
+# Original: Weighted d100 alignment roll for NPC Agents
 # Usage: roll.sh [profile]
 # Profiles: controlled_chaos (default), conservative, heroic, wild_magic, adversarial
 

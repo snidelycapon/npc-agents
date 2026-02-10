@@ -1,110 +1,62 @@
 # Integration Guide
 
-How to use NPC Agents with different agents and workflows.
-
----
-
 ## Claude Code (Full Support)
 
-Claude Code gets the full experience: skills, hooks, and the CLI selector.
+Claude Code gets the full experience: skills, hooks, characters, and parties.
 
 ### Skills
 
-All alignments and utilities are invocable as slash commands. See [.claude/skills/README.md](../.claude/skills/README.md) for the complete list.
+All alignments, classes, and utilities are slash commands:
 
 ```
-/neutral-good          # Activate Neutral Good alignment
-/roll wild_magic       # Roll a random alignment
-/oracle                # Multi-perspective investigation
-/current               # Check active alignment
+/npc create vera lawful-good rogue --persona "Security architect"
+/npc vera              # Assume a character
+/npc set neutral-good  # Anonymous mode
+/character             # View character sheet
+/quest "task"          # Dispatch to party
 ```
-
-Skills work by loading the alignment's behavioral directives into Claude's context for the session.
 
 ### Hooks
 
-Five lifecycle hooks automate alignment behavior. See [hooks/README.md](../hooks/README.md) for setup and configuration.
+Four lifecycle hooks run automatically when configured in `.claude/settings.json`. See [hooks/README.md](../hooks/README.md) for setup.
 
-| Hook | Event | What it does |
+| Hook | Event | Purpose |
 |---|---|---|
-| `load-alignment.sh` | SessionStart | Loads alignment from settings, env var, or existing symlink |
-| `alignment-restrictions.sh` | PreToolUse | Blocks Evil alignments from sensitive paths and deployment commands |
-| `compliance-validation.sh` | PostToolUse | Warns if Chaotic Evil writes clean code |
-| `require-compliance-note.sh` | Stop | Blocks stopping without an NPC Compliance Note |
-| `team-quality-gates.sh` | TeammateIdle | Enforces alignment-specific quality gates for team workflows |
+| `load-alignment.sh` | SessionStart | Loads character or alignment from config |
+| `skill-context.sh` | PreToolUse (Skill) | Injects NPC state into skill context |
+| `alignment-restrictions.sh` | PreToolUse (Write/Edit/Bash) | Blocks Evil from sensitive paths |
+| `require-compliance-note.sh` | Stop | Requires compliance note |
 
-Hooks are configured in `.claude/settings.json` and run automatically.
+### Configuration Priority
 
-### CLI Selector
+The SessionStart hook reads config from these sources (highest priority first):
 
-The `alignment-selector.sh` script manages the `CLAUDE.md` symlink:
+1. `NPC_MODE` / `NPC_CLASS` environment variables
+2. `.claude/settings.json` → `npc.mode` / `npc.class` (project-level)
+3. `~/.claude/settings.json` → `npc.mode` / `npc.class` (user-level)
+4. Falls back to `neutral-good`
 
-```bash
-./alignment-selector.sh set neutral-good    # Set specific alignment
-./alignment-selector.sh roll                # Roll random (controlled_chaos profile)
-./alignment-selector.sh roll wild_magic     # Roll with a specific profile
-./alignment-selector.sh arbiter             # Activate per-task randomization
-./alignment-selector.sh current             # Check current alignment
-./alignment-selector.sh list                # List all alignments and profiles
-./alignment-selector.sh off                 # Remove CLAUDE.md symlink
-```
+## Other Agents (Cursor, Windsurf, Aider)
 
-### Configuration
+The alignment and class directives are agent-agnostic markdown — any agent that supports project-level instructions can use them.
 
-The `load-alignment.sh` hook checks these sources in order:
+### How To
 
-1. `NPC_MODE` environment variable (highest priority)
-2. `.claude/settings.json` -> `npc.mode` (project-level)
-3. `~/.claude/settings.json` -> `npc.mode` (user-level)
-4. Existing `CLAUDE.md` symlink
-5. Falls back to `neutral-good`
-
-```bash
-# Override alignment for a session via env var
-export NPC_MODE=chaotic-good
-```
-
----
-
-## Other Agents (Cursor, Windsurf, Aider, etc.)
-
-The alignment directives themselves are agent-agnostic -- they're just markdown files that describe behavioral profiles. Any agent that supports project-level instructions can use them.
-
-### Manual Integration
-
-1. Pick an alignment from `.claude/skills/*/SKILL.md`
-2. Copy its content into your agent's project instructions file:
+1. Pick an alignment from `.claude/skills/<alignment>/SKILL.md`
+2. Optionally pick a class from `.claude/skills/<class>/SKILL.md`
+3. Copy the content into your agent's project instructions:
    - **Cursor:** `.cursorrules` or project settings
    - **Windsurf:** Project instructions
    - **Aider:** Project instructions
-3. The agent will operate under that alignment's behavioral directives
 
 ### What You Lose
 
 Without Claude Code, you don't get:
-- Slash command skills (Claude Code specific)
-- Lifecycle hooks (SessionStart, PreToolUse, etc.)
-- Automatic alignment loading and rotation
-- Team quality gates
-- The CLI selector's roll/symlink mechanism
+
+- Slash command skills
+- Lifecycle hooks (auto-load, Evil path blocking, compliance enforcement)
+- Named characters with personas
+- Parties and quests
+- Beads-based state tracking
 
 You still get the core value: a coherent behavioral profile governing code style, testing, documentation, error handling, and communication.
-
----
-
-## Using Alignments in Your Own Projects
-
-To use NPC Agents in another project:
-
-1. Copy or symlink the alignment SKILL.md you want into your project as `CLAUDE.md`
-2. Or install the hooks to get automatic alignment management
-
-```bash
-# Option A: Direct symlink from your project to an alignment
-ln -s /path/to/agentic-alignment/.claude/skills/neutral-good/SKILL.md ./CLAUDE.md
-
-# Option B: Copy the hooks config into your project's .claude/settings.json
-# and point the hook commands to the agentic-alignment directory
-```
-
-The alignment directives reference no external files -- each SKILL.md is self-contained.

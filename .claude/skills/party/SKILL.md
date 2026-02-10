@@ -6,9 +6,11 @@ argument-hint: "[name | create <name> | delete <name> | active [name]]"
 
 # Party Management
 
-Manage saved adventuring parties — teams of NPC agents with specific alignment+class compositions.
+> **Context:** The `skill-context` hook injects NPC state when this skill is invoked. Use the `Project dir` value as `$PROJECT_DIR` in bash commands below. The active party name is available directly from hook context.
 
-Parties are stored as JSON files in `.claude/parties/<name>.json`.
+Manage adventuring parties — teams of NPC character beads organized as epics.
+
+Parties are beads of type `epic` with label `npc:party`. Members are character beads (type `task`, label `npc:character`) linked via parent-child dependencies.
 
 ## Arguments
 
@@ -16,8 +18,8 @@ Parties are stored as JSON files in `.claude/parties/<name>.json`.
 
 ## Parse Arguments
 
-- No arguments → list all saved parties
-- `create <name> [description...]` → create a new empty party
+- No arguments → list all parties
+- `create <name> [description...]` → create a new party
 - `delete <name>` → delete a party (confirm first)
 - `active` (no name) → show the currently active party
 - `active <name>` → set the active party
@@ -27,31 +29,43 @@ Parties are stored as JSON files in `.claude/parties/<name>.json`.
 
 ### List All Parties (no arguments)
 
-1. List all party files:
+1. List all party beads:
    ```bash
-   ls "$CLAUDE_PROJECT_DIR"/.claude/parties/*.json 2>/dev/null
+   bd list --label npc:party -t epic --json
    ```
 
-2. For each file, read it and display a summary line:
+2. For each party, display a summary line:
    ```
-   - **<name>** — <description> (<N> members)
+   - **<title>** — <description> (<N> members)
    ```
+   To get member count, use `bd children <party-id> --json` and count results.
 
-3. Also show which party is currently active:
-   ```bash
-   jq -r '.activeParty // "none"' "$CLAUDE_PROJECT_DIR/.npc-state.json" 2>/dev/null
-   ```
+3. Show which party is currently active (from skill-context hook output).
 
 4. If no parties exist, say so and suggest `/party create <name>`.
 
 ### Show Party Roster: `<name>`
 
-1. Read the party file:
+1. Resolve party:
    ```bash
-   cat "$CLAUDE_PROJECT_DIR/.claude/parties/<name>.json"
+   PARTY_ID=$("$PROJECT_DIR"/hooks/scripts/resolve-party.sh "<name>")
    ```
 
-2. Display the party as a formatted roster:
+2. If not found, error and stop.
+
+3. Get party details:
+   ```bash
+   bd show "$PARTY_ID" --json
+   ```
+
+4. Get members (children):
+   ```bash
+   bd children "$PARTY_ID" --json
+   ```
+
+5. For each child bead, extract alignment/class/role from labels, name from title, persona from description.
+
+6. Display as a formatted roster:
 
    ```
    ## <Party Name>
@@ -60,87 +74,73 @@ Parties are stored as JSON files in `.claude/parties/<name>.json`.
    | # | Name | Alignment | Class | Role | Persona |
    |---|------|-----------|-------|------|---------|
    | 1 | Vera | LG | Rogue | Defender | Battle-scarred security architect... |
-   | 2 | — | NE | Rogue | Attacker | — |
+   | 2 | Kai  | NE | Rogue | Attacker | — |
    ```
 
-   - **Name** column: show the member's `name` if set, otherwise "—"
-   - **Persona** column: show a truncated preview (first ~40 chars) if set, otherwise "—"
-   - **Alignment**: use the short form (LG, NG, CG, LN, TN, CN, LE, NE, CE)
+   - **Alignment**: use short form (LG, NG, CG, LN, TN, CN, LE, NE, CE)
+   - **Persona**: truncated preview (~40 chars) or "—"
 
-3. Show if this is the active party.
+7. Show if this is the active party.
 
 ### Create Party: `create <name> [description...]`
 
-1. Validate the name: must be kebab-case (`[a-z0-9-]+`). No spaces.
+1. Validate name: must be kebab-case (`[a-z0-9-]+`).
 
-2. Check if the party file already exists:
+2. Check if party already exists:
    ```bash
-   test -f "$CLAUDE_PROJECT_DIR/.claude/parties/<name>.json"
+   EXISTING=$("$PROJECT_DIR"/hooks/scripts/resolve-party.sh "<name>")
    ```
-   If it exists, report error and stop.
+   If found, error and stop.
 
-3. Ensure the parties directory exists:
+3. Create the party bead:
    ```bash
-   mkdir -p "$CLAUDE_PROJECT_DIR/.claude/parties"
+   bd create "<name>" -t epic -l "npc:party" -d "<description>"
    ```
 
-4. Write the party file:
-   ```json
-   {
-     "name": "<name>",
-     "description": "<description or empty string>",
-     "created": "<ISO 8601 timestamp>",
-     "members": []
-   }
-   ```
-
-5. If no active party is set, automatically set this as active:
+4. If no active party is set, set this one active on the session bead:
    ```bash
-   jq --arg party "<name>" '.activeParty = $party' "$CLAUDE_PROJECT_DIR/.npc-state.json" > /tmp/npc-state.json && mv /tmp/npc-state.json "$CLAUDE_PROJECT_DIR/.npc-state.json"
+   SESSION_ID=$("$PROJECT_DIR"/hooks/scripts/ensure-session.sh)
+   bd set-state "$SESSION_ID" active-party="<name>" --reason "First party created"
    ```
 
-6. Announce: "Created party **<name>**. Use `/recruit <alignment> [class]` to add members."
+5. Announce: "Created party **<name>**. Use `/recruit` to add members."
 
 ### Delete Party: `delete <name>`
 
-1. Check the party file exists.
+1. Resolve party via `resolve-party.sh`.
 
-2. Read it and show the roster.
+2. Show the roster (using `bd children`).
 
-3. **Confirm with the user** before deleting. This is a destructive action.
+3. **Confirm with the user** before deleting.
 
-4. If confirmed, delete the file:
+4. If confirmed, delete:
    ```bash
-   rm "$CLAUDE_PROJECT_DIR/.claude/parties/<name>.json"
+   bd delete "$PARTY_ID"
+   ```
+   Note: This only deletes the party epic. Character beads survive — they're independent entities.
+
+5. If this was the active party, clear it on the session bead:
+   ```bash
+   SESSION_ID=$("$PROJECT_DIR"/hooks/scripts/ensure-session.sh)
+   bd set-state "$SESSION_ID" active-party=none --reason "Active party deleted"
    ```
 
-5. If this was the active party, clear the `activeParty` field:
-   ```bash
-   jq 'del(.activeParty)' "$CLAUDE_PROJECT_DIR/.npc-state.json" > /tmp/npc-state.json && mv /tmp/npc-state.json "$CLAUDE_PROJECT_DIR/.npc-state.json"
-   ```
-
-6. Announce: "Deleted party **<name>**."
+6. Announce: "Deleted party **<name>**. Character beads are preserved."
 
 ### Show Active Party: `active` (no name)
 
-1. Read active party from state:
-   ```bash
-   jq -r '.activeParty // "none"' "$CLAUDE_PROJECT_DIR/.npc-state.json" 2>/dev/null
-   ```
-
-2. If set, show that party's roster (same as Show Party Roster above).
+1. Read the active party from skill-context hook output.
+2. If set, show that party's roster.
 3. If not set, say "No active party. Use `/party active <name>` to set one."
 
 ### Set Active Party: `active <name>`
 
-1. Verify the party file exists:
-   ```bash
-   test -f "$CLAUDE_PROJECT_DIR/.claude/parties/<name>.json"
-   ```
+1. Resolve party via `resolve-party.sh`. Verify it exists.
 
-2. Update state:
+2. Update session bead:
    ```bash
-   jq --arg party "<name>" '.activeParty = $party' "$CLAUDE_PROJECT_DIR/.npc-state.json" > /tmp/npc-state.json && mv /tmp/npc-state.json "$CLAUDE_PROJECT_DIR/.npc-state.json"
+   SESSION_ID=$("$PROJECT_DIR"/hooks/scripts/ensure-session.sh)
+   bd set-state "$SESSION_ID" active-party="<name>" --reason "Set active party"
    ```
 
 3. Show the party's roster.

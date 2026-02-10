@@ -1,26 +1,24 @@
 ---
 name: current
-description: "Display the currently active alignment, class, and compliance status."
+description: "Display the currently active character, alignment, class, and compliance status."
 ---
 
 # Check Current Status
 
-Report your currently active alignment, class, and operational status.
+Report your currently active character, alignment, class, and operational status.
 
 ## Steps
 
-1. Read the NPC state file:
-   ```bash
-   cat "$CLAUDE_PROJECT_DIR/.npc-state.json"
-   ```
+1. Read the NPC state from the **skill-context hook output** injected into your context. It contains the active character (name + bead ID or "anonymous"), alignment, class, party, and session bead ID.
 
 2. Provide a status report:
 
 ### Active Identity
-- Alignment name (e.g., "Lawful Good")
-- Class name (e.g., "Fighter") or "not assigned" if class mode is off
-- Current mode (alignment name = fixed, profile name = rolling, off = disabled)
-- Current class mode (class name = fixed, profile name = rolling, off = disabled)
+- Character name (or "anonymous" if no character assumed)
+- Alignment name (e.g., "Neutral Good")
+- Class name (e.g., "Wizard") or "not assigned" if class is off
+- Active party (if any)
+- Persona summary (if character active)
 
 ### Current Operational Mode
 - How this alignment is affecting your current approach
@@ -37,14 +35,13 @@ Report your currently active alignment, class, and operational status.
 ### Task Context
 - How the current alignment + class relate to the task at hand
 - Whether this combination is appropriate for the current work
-- Recommendation: keep, switch alignment, switch class, or both?
+- Recommendation: keep current character, switch, or create a new one?
 
 ## When to Switch
 
 Consider switching if:
-- Current work requires different risk tolerance (security work → `/npc lawful-good`)
-- Current work is outside class domain (debugging → `/npc <alignment> ranger`)
-- Team needs different perspective (hypothesis testing → `/roll`)
-- Alignment insights exhausted (switch to see new angles)
-- Evil alignment but work became security-critical (switch to Good)
-- Class mismatch for task type (docs task with Fighter → `/npc <alignment> bard`)
+- Current work requires different risk tolerance (security work → `/npc <name>` with lawful-good character)
+- Current work is outside class domain (debugging → assume a ranger character)
+- Character insights exhausted (switch to see new angles)
+- Evil alignment but work became security-critical (switch to a Good character)
+- Class mismatch for task type (docs task with Fighter → assume a bard character)

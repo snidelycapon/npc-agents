@@ -1,6 +1,6 @@
 ---
 name: character
-description: "Display your full NPC character sheet — alignment, class, and combined identity."
+description: "Display your full NPC character sheet — alignment, class, persona, and party memberships."
 ---
 
 # Character Sheet
@@ -9,54 +9,73 @@ Display the full NPC character identity.
 
 ## Procedure
 
-1. Read the state file:
+1. Read the NPC state from the **skill-context hook output** injected into your context. It contains alignment, class, active character (bead ID or "anonymous"), persona, role, session bead ID, and party.
+
+2. If an active character is set (not "anonymous"), load the character bead for full details:
    ```bash
-   cat "$CLAUDE_PROJECT_DIR/.npc-state.json" 2>/dev/null || echo "No NPC state file found"
+   bd show "<active-character-id>" --json
    ```
 
-2. Read settings for mode info:
+3. Check party memberships by listing parties and checking if this character is a child:
    ```bash
-   jq '.npc' "$CLAUDE_PROJECT_DIR/.claude/settings.json" 2>/dev/null
+   bd list --label npc:party -t epic --json
    ```
 
-3. Format and display the character sheet:
+4. Format and display the character sheet:
+
+### Named Character Sheet
 
 ```
 ╔══════════════════════════════════════════╗
 ║          NPC CHARACTER SHEET             ║
 ╠══════════════════════════════════════════╣
+║                                          ║
+║  CHARACTER                               ║
+║  Name:      [character name]             ║
+║  Bead:      [bead ID]                    ║
 ║                                          ║
 ║  ALIGNMENT                               ║
 ║  Name:      [alignment]                  ║
 ║  Axis:      [Law/Neutral/Chaos]          ║
 ║             [Good/Neutral/Evil]          ║
-║  Mode:      [fixed | profile name]       ║
 ║                                          ║
 ║  CLASS                                   ║
 ║  Name:      [class]                      ║
 ║  Domain:    [domain description]         ║
-║  Mode:      [fixed | profile | off]      ║
 ║                                          ║
-║  AFFINITIES                              ║
-║  Primary:   [highest affinity tasks]     ║
-║  Secondary: [medium affinity tasks]      ║
+║  PERSONA                                 ║
+║  [persona text]                          ║
+║                                          ║
+║  ROLE: [role label]                      ║
+║                                          ║
+║  PARTIES                                 ║
+║  - [party name 1]                        ║
+║  - [party name 2]                        ║
 ║                                          ║
 ╚══════════════════════════════════════════╝
 ```
 
-4. If class is not set (mode is "off"), show alignment-only sheet:
+### Anonymous Sheet
+
+If no named character is active, show alignment-only:
 
 ```
 ╔══════════════════════════════════════════╗
 ║          NPC CHARACTER SHEET             ║
 ╠══════════════════════════════════════════╣
 ║                                          ║
+║  CHARACTER: Anonymous                    ║
+║                                          ║
 ║  ALIGNMENT                               ║
 ║  Name:      [alignment]                  ║
-║  Mode:      [fixed | profile name]       ║
+║  Axis:      [Law/Neutral/Chaos]          ║
+║             [Good/Neutral/Evil]          ║
 ║                                          ║
-║  CLASS: Not assigned                     ║
-║  Use /npc to assign a class               ║
+║  CLASS                                   ║
+║  Name:      [class or "not assigned"]    ║
+║                                          ║
+║  Use /npc create to make a character     ║
+║  Use /npc <name> to assume one           ║
 ║                                          ║
 ╚══════════════════════════════════════════╝
 ```

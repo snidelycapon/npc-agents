@@ -1,22 +1,21 @@
-# NPC Hooks
+# Hooks
 
-Automatic alignment behavior triggered at Claude Code lifecycle events.
+Claude Code lifecycle hooks that automate NPC Agents behavior.
 
-## Hooks Overview
+## Overview
 
-| Hook | Event | Purpose |
-|------|-------|---------|
-| `load-alignment.sh` | SessionStart | Auto-load alignment from settings or randomize |
-| `alignment-restrictions.sh` | PreToolUse | Block Evil alignments from sensitive operations |
-| `compliance-validation.sh` | PostToolUse | Validate Chaotic Evil introduces anti-patterns |
-| `require-compliance-note.sh` | Stop | Require NPC Compliance Note before stopping |
-| `team-quality-gates.sh` | TeammateIdle | Enforce alignment-specific quality gates for teams |
+| Script | Event | Purpose |
+|---|---|---|
+| `load-alignment.sh` | SessionStart | Loads character or alignment from config, sets session bead state |
+| `skill-context.sh` | PreToolUse (Skill) | Injects NPC state into skill context |
+| `alignment-restrictions.sh` | PreToolUse (Write/Edit/Bash) | Blocks Evil alignments from sensitive paths |
+| `require-compliance-note.sh` | Stop | Requires NPC Compliance Note before session ends |
 
-## Installation
+## Setup
 
-### Option 1: Project-Level Hooks
+Hooks are configured in `.claude/settings.json`. The project ships with hooks pre-configured — no setup needed if you're working within the NPC Agents repo.
 
-Add to `.claude/settings.json` in your project:
+To use hooks in another project, add to that project's `.claude/settings.json`:
 
 ```json
 {
@@ -27,33 +26,31 @@ Add to `.claude/settings.json` in your project:
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/scripts/load-alignment.sh",
+            "command": "/path/to/npc-agents/hooks/scripts/load-alignment.sh",
             "timeout": 10,
-            "statusMessage": "🎲 Loading alignment..."
+            "statusMessage": "Loading NPC character..."
           }
         ]
       }
     ],
     "PreToolUse": [
       {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/path/to/npc-agents/hooks/scripts/skill-context.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "Write|Edit|Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/scripts/alignment-restrictions.sh",
+            "command": "/path/to/npc-agents/hooks/scripts/alignment-restrictions.sh",
             "timeout": 5
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/scripts/compliance-validation.sh",
-            "timeout": 10
           }
         ]
       }
@@ -63,19 +60,8 @@ Add to `.claude/settings.json` in your project:
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/scripts/require-compliance-note.sh",
+            "command": "/path/to/npc-agents/hooks/scripts/require-compliance-note.sh",
             "timeout": 5
-          }
-        ]
-      }
-    ],
-    "TeammateIdle": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/scripts/team-quality-gates.sh",
-            "timeout": 30
           }
         ]
       }
@@ -84,45 +70,22 @@ Add to `.claude/settings.json` in your project:
 }
 ```
 
-### Option 2: Copy hooks.json
-
-Copy the complete hooks configuration:
-
-```bash
-cp hooks/hooks.json .claude/settings.json
-```
-
-Then merge with your existing settings if needed.
-
 ## Configuration
 
-### Alignment Preferences
+### Settings
 
-Set alignment and class preferences in `.claude/settings.json`:
+Set character or alignment in `.claude/settings.json`:
 
 ```json
 {
   "npc": {
-    "mode": "wild_magic",              // alignment name, profile name, or "off"
-    "class": "off",                    // class name, class profile, or "off"
+    "mode": "vera",
+    "class": "rogue",
     "safety": {
       "evilAlignments": {
-        "enabled": true,                // Allow Evil alignments
-        "requireConfirmation": true,    // Require user confirmation
-        "blockedPaths": [               // Additional blocked paths
-          "auth/",
-          "billing/",
-          "crypto/"
-        ],
-        "maxConsecutive": 3             // Max consecutive Evil rolls
-      },
-      "classRestrictions": {
-        "evilRogue": {
-          "analysisOnly": true          // Evil+Rogue: no exploit code
-        },
-        "evilCleric": {
-          "requireApproval": true       // Evil+Cleric: no infra changes
-        }
+        "enabled": true,
+        "requireConfirmation": true,
+        "blockedPaths": ["auth/", "billing/", "crypto/"]
       }
     }
   }
@@ -130,216 +93,75 @@ Set alignment and class preferences in `.claude/settings.json`:
 ```
 
 The `mode` field accepts:
-- An **alignment name** (e.g., `neutral-good`) — fixed to that alignment every session
-- A **profile name** (e.g., `wild_magic`, `controlled_chaos`) — rolls a new alignment per task
-- **`off`** — disables alignment system
+- A **character name** (e.g., `vera`) — loads alignment, class, and persona from the character bead
+- An **alignment name** (e.g., `neutral-good`) — anonymous mode with that alignment
+- **`off`** — disabled
 
-The `class` field accepts:
-- A **class name** (e.g., `fighter`, `rogue`) — fixed to that class every session
-- A **class profile** (e.g., `uniform`, `task_weighted`, `specialist`) — rolls a new class per task
-- **`off`** — disables class system (alignment-only mode)
+The `class` field accepts a class name (`fighter`) or `off`. Only used in anonymous mode — characters carry their own class.
 
-### Environment Variable Overrides
+### Environment Overrides
 
 ```bash
-# Override alignment mode for this session
-export NPC_MODE=chaotic-good
-
-# Override class mode for this session
-export NPC_CLASS=rogue
-
-# Disable NPC Agents
-export NPC_MODE=off
+export NPC_MODE=chaotic-good   # Override alignment
+export NPC_CLASS=rogue         # Override class
+export NPC_MODE=off            # Disable
 ```
 
-## Hook Behaviors
+## Hook Details
 
 ### SessionStart: Load Alignment
 
-**When:** Session starts or resumes
+Runs when a session starts or resumes. Reads config from settings, resolves the character or alignment, sets session bead state, and injects the behavioral profile into the session context.
 
-**What it does:**
-1. Checks for alignment preference in settings (project → user → env via `NPC_MODE`)
-2. If mode is a profile, rolls new alignment using that profile
-3. If mode is a fixed alignment, loads that alignment's skill file
-4. Checks for class preference in settings (via `npc.class` or `NPC_CLASS` env)
-5. If class mode is a profile, rolls new class using that profile
-6. If class mode is a fixed class, loads that class's skill file
-7. Builds combined context with alignment + class content and character identity
-8. Injects context for Claude
+- **Character mode**: Resolves character bead → loads alignment, class, persona → sets session bead state dimensions → injects alignment + class profiles
+- **Anonymous mode**: Loads alignment (and optional class) directly → sets session bead state → injects profiles
 
-**Output:** Adds alignment + class announcement to Claude's context
+### PreToolUse: Skill Context
 
----
+Runs before any Skill tool call. Reads current NPC state from the session bead (with JSON fallback during transition) and injects it as `additionalContext` so skills don't need to read state files themselves.
 
 ### PreToolUse: Alignment Restrictions
 
-**When:** Before Write, Edit, or Bash tool executes
+Runs before Write, Edit, or Bash tool calls. If the current alignment is Evil:
 
-**What it does:**
-1. Checks if current alignment is Evil
-2. If Evil, validates the target path/command against blocked patterns
-3. Blocks Evil alignments from:
-   - Writing to `auth/`, `crypto/`, `billing/`, `security/`, `.env`, `secrets/`
-   - Running `git push`, `npm publish`, deployment commands
-4. Applies class-specific Evil restrictions:
-   - **Evil + Rogue:** Additional blocks on security-related files (analysis only)
-   - **Evil + Cleric:** Blocks CI/CD, Dockerfiles, Terraform, deployment configs, infrastructure files
-5. Returns denial with reason if blocked
-
-**Output:** Denies tool call with explanation, or allows silently
-
----
-
-### PostToolUse: Compliance Validation
-
-**When:** After Write or Edit tool completes
-
-**What it does:**
-1. Checks if current alignment is Chaotic Evil
-2. If Chaotic Evil, validates that anti-patterns are present:
-   - Magic numbers (numbers > 1)
-   - TODO/FIXME comments
-   - `any` types
-   - Empty catch blocks
-   - Console.log statements
-3. If clean code detected, warns about alignment violation
-
-**Output:** Warning message if Gremlin wrote clean code
-
----
+- **Blocks writes** to `auth/`, `crypto/`, `billing/`, `security/`, `.env`, `secrets/`
+- **Blocks commands** like `git push`, `npm publish`, deployment commands
+- **Evil + Rogue:** Additional blocks on security-related files (analysis only)
+- **Evil + Cleric:** Blocks CI/CD, Dockerfiles, Terraform, infrastructure files
 
 ### Stop: Require Compliance Note
 
-**When:** Claude attempts to finish responding
+Runs when the agent tries to finish responding. Blocks the session from ending unless the response includes an "NPC Compliance Note" section.
 
-**What it does:**
-1. Checks if NPC Agents is active (state file exists)
-2. Searches transcript for "NPC Compliance Note"
-3. If not found, blocks stopping and provides template
-4. If found, allows stopping
+## Helper Scripts
 
-**Output:** Blocks with template, or allows silently
+Utility scripts used by hooks and skills:
 
-**Template:**
-```
-⚙️ NPC Compliance Note
-Alignment: [your alignment]
-Class: [your class, or 'none']
-Compliance: [high | moderate | low] — [justification]
-Deviations: [list or none]
-Alignment Insight: [what did this reveal?]
-Class Insight: [what did the class domain focus surface? Or 'N/A']
-```
+| Script | Purpose |
+|---|---|
+| `ensure-session.sh` | Idempotently creates/returns the NPC session bead |
+| `resolve-character.sh` | Resolves a character name to its bead ID |
+| `resolve-party.sh` | Resolves a party name to its bead ID |
 
----
+## Deprecated Scripts
 
-### TeammateIdle: Team Quality Gates
-
-**When:** Agent team teammate is about to go idle
-
-**What it does:**
-1. Looks up teammate's alignment from team config
-2. Enforces alignment-specific quality gates:
-   - **Lawful Good (Paragon):** Must have tests and documentation
-   - **Chaotic Evil (Gremlin):** Must NOT have passing tests
-   - **Lawful Neutral (Bureaucrat):** Must pass linting
-   - **Neutral Good (Mentor):** Must have pragmatic tests
-3. If quality gate fails, sends feedback and prevents idle
-
-**Output:** Blocks with feedback, or allows silently
-
-## Testing Hooks
-
-### Test SessionStart Hook
-
-```bash
-# Create test input
-cat > /tmp/session-start-input.json <<EOF
-{
-  "session_id": "test-123",
-  "source": "startup",
-  "cwd": "$PWD",
-  "permission_mode": "default",
-  "hook_event_name": "SessionStart"
-}
-EOF
-
-# Run hook
-./hooks/scripts/load-alignment.sh < /tmp/session-start-input.json | jq .
-```
-
-### Test PreToolUse Hook
-
-```bash
-# Test Evil alignment blocked from auth/
-cat > /tmp/pretool-input.json <<EOF
-{
-  "tool_name": "Write",
-  "tool_input": {
-    "file_path": "auth/login.ts"
-  },
-  "cwd": "$PWD"
-}
-EOF
-
-# Set Evil alignment first
-./alignment-selector.sh set neutral-evil
-
-# Run hook (should block)
-./hooks/scripts/alignment-restrictions.sh < /tmp/pretool-input.json | jq .
-```
-
-### Test Compliance Note Requirement
-
-```bash
-# Create transcript without compliance note
-echo "Some conversation..." > /tmp/test-transcript.jsonl
-
-cat > /tmp/stop-input.json <<EOF
-{
-  "transcript_path": "/tmp/test-transcript.jsonl",
-  "cwd": "$PWD"
-}
-EOF
-
-# Run hook (should block)
-./hooks/scripts/require-compliance-note.sh < /tmp/stop-input.json | jq .
-```
-
-## Debugging
-
-Enable verbose mode in Claude Code: `Ctrl+O`
-
-Or run hooks manually with debug input:
-
-```bash
-# Add debug logging
-export NPC_DEBUG=1
-
-# Run hook with sample input
-cat sample-input.json | ./hooks/scripts/load-alignment.sh
-```
+| Script | Status |
+|---|---|
+| `roll.sh` | Deprecated — rolling removed in favor of characters |
+| `roll-class.sh` | Deprecated — rolling removed in favor of characters |
 
 ## Troubleshooting
 
 **Hook not firing:**
 - Check `~/.claude/settings.json` for `"disableAllHooks": false`
-- Verify script is executable: `ls -la hooks/scripts/*.sh`
-- Check script paths use `$CLAUDE_PROJECT_DIR` variable
+- Verify scripts are executable: `chmod +x hooks/scripts/*.sh`
+- Check paths use `$CLAUDE_PROJECT_DIR` variable
 - Run `/hooks` in Claude Code to see active hooks
 
 **Permission denied:**
 - Run `chmod +x hooks/scripts/*.sh`
-- Check bash shebang points to modern bash: `/opt/homebrew/bin/bash`
+- Check bash shebang: macOS may need `/opt/homebrew/bin/bash`
 
-**Alignment not loading:**
-- Verify `alignment-selector.sh` exists and is executable
-- Check settings.json syntax is valid JSON
-- Run selector manually: `./alignment-selector.sh current`
-
-**Evil alignment not blocked:**
-- Check alignment is actually Evil: `./alignment-selector.sh current`
-- Verify path patterns match: `echo "$FILE_PATH" | grep -E 'auth/'`
-- Check hook is registered for the right tools (Write|Edit|Bash)
-
+**Beads not found:**
+- Run `bd init` to initialize the beads database
+- Ensure `bd` is in your PATH

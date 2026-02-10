@@ -13,13 +13,23 @@ CWD=$(echo "$INPUT" | jq -r '.cwd')
 # Navigate to project directory
 cd "$CWD"
 
-# Read alignment from state file
-if [ ! -f ".npc-state.json" ]; then
-  # No NPC state, allow
-  exit 0
+# Read alignment — try beads session bead first, then JSON fallback
+ALIGNMENT=""
+CLASS=""
+
+if command -v bd &>/dev/null && [ -d ".beads" ]; then
+  SESSION_ID=$(bd list --label npc:session -t task --limit 1 --json 2>/dev/null | jq -r '.[0].id // empty')
+  if [ -n "$SESSION_ID" ]; then
+    ALIGNMENT=$(bd state "$SESSION_ID" alignment 2>/dev/null || echo "")
+    CLASS=$(bd state "$SESSION_ID" active-class 2>/dev/null || echo "")
+  fi
 fi
 
-ALIGNMENT=$(jq -r '.alignment // empty' .npc-state.json 2>/dev/null || echo "")
+# JSON fallback
+if [ -z "$ALIGNMENT" ] && [ -f ".npc-state.json" ]; then
+  ALIGNMENT=$(jq -r '.alignment // .mode // empty' .npc-state.json 2>/dev/null || echo "")
+  CLASS=$(jq -r '.class // empty' .npc-state.json 2>/dev/null || echo "")
+fi
 
 if [ -z "$ALIGNMENT" ]; then
   exit 0
@@ -30,9 +40,6 @@ if [[ ! "$ALIGNMENT" =~ evil ]]; then
   # Not an Evil alignment, allow all tools
   exit 0
 fi
-
-# Read class from state file
-CLASS=$(jq -r '.class // empty' .npc-state.json 2>/dev/null || echo "")
 
 # Evil alignment detected - check for sensitive operations
 BLOCKED=false
