@@ -11,11 +11,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 HOOKS_DIR="$PROJECT_DIR/hooks/scripts"
 SETTINGS_FILE="$PROJECT_DIR/.claude/settings.json"
-SKILLS_DIR="$PROJECT_DIR/.claude/skills"
+SYSTEMS_DIR="$PROJECT_DIR/systems"
 
-ALIGNMENTS="lawful-good neutral-good chaotic-good lawful-neutral true-neutral chaotic-neutral lawful-evil neutral-evil chaotic-evil"
-CLASSES="fighter wizard rogue cleric bard ranger"
-PERSPECTIVES="developer customer"
+# Manifest state — loaded once per invocation via ensure_manifest()
+MANIFEST=""
+ACTIVE_SYSTEM=""
 
 # ============================================================
 # UTILITY FUNCTIONS
@@ -23,30 +23,120 @@ PERSPECTIVES="developer customer"
 
 die() { echo "Error: $*" >&2; exit 1; }
 
-is_alignment() { [[ " $ALIGNMENTS " == *" $1 "* ]]; }
-is_class() { [[ " $CLASSES " == *" $1 "* ]]; }
-is_perspective() { [[ " $PERSPECTIVES " == *" $1 "* ]]; }
+# --- System manifest functions ---
 
-short_alignment() {
-  case "$1" in
-    lawful-good) echo "LG" ;; neutral-good) echo "NG" ;; chaotic-good) echo "CG" ;;
-    lawful-neutral) echo "LN" ;; true-neutral) echo "TN" ;; chaotic-neutral) echo "CN" ;;
-    lawful-evil) echo "LE" ;; neutral-evil) echo "NE" ;; chaotic-evil) echo "CE" ;;
-    *) echo "$1" ;;
-  esac
+get_active_system() {
+  local system
+  system=$(jq -r '.npc.system // "alignment-grid"' "$SETTINGS_FILE" 2>/dev/null)
+  echo "${system:-alignment-grid}"
 }
 
-class_domain() {
-  case "$1" in
-    fighter) echo "Feature Implementation" ;;
-    wizard)  echo "Architecture & System Design" ;;
-    rogue)   echo "Security & Testing" ;;
-    cleric)  echo "DevOps & Infrastructure" ;;
-    bard)    echo "Documentation & DX" ;;
-    ranger)  echo "Debugging & Investigation" ;;
-    *)       echo "" ;;
-  esac
+load_manifest() {
+  local system="${1:-$(get_active_system)}"
+  local system_dir="$SYSTEMS_DIR/$system"
+  local yaml_file="$system_dir/system.yaml"
+  local cache_file="$system_dir/.manifest.json"
+
+  if [[ ! -f "$yaml_file" ]]; then
+    die "System '$system' not found at $system_dir"
+  fi
+
+  # Regenerate cache if stale or missing
+  if [[ ! -f "$cache_file" ]] || [[ "$yaml_file" -nt "$cache_file" ]]; then
+    "$SCRIPT_DIR/manifest-cache" "$yaml_file" "$cache_file" 2>/dev/null || \
+      die "Failed to cache manifest for system '$system'. Ensure yq or python3+pyyaml is available."
+  fi
+
+  MANIFEST=$(cat "$cache_file")
+  ACTIVE_SYSTEM="$system"
 }
+
+ensure_manifest() {
+  if [[ -z "$MANIFEST" ]]; then
+    load_manifest
+  fi
+}
+
+# --- Dynamic validation (manifest-driven) ---
+
+is_disposition() {
+  ensure_manifest
+  echo "$MANIFEST" | jq -e --arg v "$1" '.axes.disposition.values | index($v) != null' >/dev/null 2>&1
+}
+
+is_domain() {
+  ensure_manifest
+  echo "$MANIFEST" | jq -e --arg v "$1" '.axes.domain.values | index($v) != null' >/dev/null 2>&1
+}
+
+is_stance() {
+  ensure_manifest
+  echo "$MANIFEST" | jq -e --arg v "$1" '.axes.stance.values | index($v) != null' >/dev/null 2>&1
+}
+
+which_axis() {
+  ensure_manifest
+  local val="$1"
+  if echo "$MANIFEST" | jq -e --arg v "$val" '.axes.disposition.values | index($v) != null' >/dev/null 2>&1; then
+    echo "disposition"
+  elif echo "$MANIFEST" | jq -e --arg v "$val" '.axes.domain.values | index($v) != null' >/dev/null 2>&1; then
+    echo "domain"
+  elif echo "$MANIFEST" | jq -e --arg v "$val" '.axes.stance.values | index($v) != null' >/dev/null 2>&1; then
+    echo "stance"
+  else
+    echo ""
+  fi
+}
+
+# --- Dynamic metadata (manifest-driven) ---
+
+short_code() {
+  ensure_manifest
+  echo "$MANIFEST" | jq -r --arg v "$1" '.axes.disposition.metadata[$v].short // $v' 2>/dev/null
+}
+
+domain_description() {
+  ensure_manifest
+  echo "$MANIFEST" | jq -r --arg v "$1" '.axes.domain.metadata[$v].description // ""' 2>/dev/null
+}
+
+# --- Axis helpers ---
+
+get_prefix() {
+  ensure_manifest
+  echo "$MANIFEST" | jq -r --arg a "$1" '.axes[$a].prefix' 2>/dev/null
+}
+
+get_axis_label() {
+  ensure_manifest
+  echo "$MANIFEST" | jq -r --arg a "$1" '.axes[$a].label' 2>/dev/null
+}
+
+list_axis_values() {
+  ensure_manifest
+  echo "$MANIFEST" | jq -r --arg a "$1" '.axes[$a].values[]' 2>/dev/null
+}
+
+# Resolve path to a profile .md file within a system directory.
+resolve_profile() {
+  local system="$1" axis="$2" value="$3"
+  local axis_dir
+  case "$axis" in
+    disposition) axis_dir="dispositions" ;;
+    domain)      axis_dir="domains" ;;
+    stance)      axis_dir="stances" ;;
+    *)           echo ""; return 1 ;;
+  esac
+
+  echo "$SYSTEMS_DIR/$system/$axis_dir/$value.md"
+}
+
+# --- Backward-compat aliases ---
+is_alignment() { is_disposition "$1"; }
+is_class() { is_domain "$1"; }
+is_perspective() { is_stance "$1"; }
+short_alignment() { short_code "$1"; }
+class_domain() { domain_description "$1"; }
 
 ensure_session() { "$HOOKS_DIR/ensure-session.sh" 2>/dev/null; }
 
@@ -156,7 +246,11 @@ display_depth_fields() {
 
 # Strip YAML frontmatter (--- ... ---) from a file, returning only content after second ---.
 strip_frontmatter() {
-  awk 'BEGIN{fm=0} /^---$/{fm++; next} fm>=2{print}' "$1"
+  if head -1 "$1" | grep -q '^---$'; then
+    awk 'BEGIN{fm=0} /^---$/{fm++; next} fm>=2{print}' "$1"
+  else
+    cat "$1"
+  fi
 }
 
 # Build and output the full behavioral context for a character.
@@ -200,11 +294,12 @@ build_character_context() {
     echo ""
   fi
 
-  # --- Customer perspective preamble ---
-  if [[ "$perspective" == "customer" ]]; then
-    local preamble_file="$PROJECT_DIR/stances/customer.md"
+  # --- Stance preamble ---
+  if [[ -n "$perspective" ]]; then
+    local preamble_file
+    preamble_file=$(resolve_profile "$ACTIVE_SYSTEM" "stance" "$perspective")
     if [[ -f "$preamble_file" ]]; then
-      cat "$preamble_file"
+      strip_frontmatter "$preamble_file"
       echo ""
     fi
   fi
@@ -242,22 +337,24 @@ build_character_context() {
     fi
   fi
 
-  # --- Alignment profile ---
-  local alignment_file="$SKILLS_DIR/$alignment/SKILL.md"
-  if [[ -f "$alignment_file" ]]; then
+  # --- Disposition profile ---
+  local disp_file
+  disp_file=$(resolve_profile "$ACTIVE_SYSTEM" "disposition" "$alignment")
+  if [[ -f "$disp_file" ]]; then
     echo "---"
     echo ""
-    strip_frontmatter "$alignment_file"
+    strip_frontmatter "$disp_file"
     echo ""
   fi
 
-  # --- Class profile ---
-  if [[ -n "$class" ]] && is_class "$class"; then
-    local class_file="$SKILLS_DIR/$class/SKILL.md"
-    if [[ -f "$class_file" ]]; then
+  # --- Domain profile ---
+  if [[ -n "$class" ]] && is_domain "$class"; then
+    local domain_file
+    domain_file=$(resolve_profile "$ACTIVE_SYSTEM" "domain" "$class")
+    if [[ -f "$domain_file" ]]; then
       echo "---"
       echo ""
-      strip_frontmatter "$class_file"
+      strip_frontmatter "$domain_file"
       echo ""
     fi
   fi
@@ -435,30 +532,47 @@ cmd_assume() {
   char_id=$(resolve_character "$name")
   [[ -z "$char_id" ]] && die "Character '$name' not found. Use 'npc create' to create one."
 
-  local char_json labels alignment active_class role char_title persona perspective
+  local char_json labels char_title persona
   char_json=$(bd show "$char_id" --json 2>/dev/null || echo "[]")
   labels=$(echo "$char_json" | jq -c '.[0].labels // []')
-  alignment=$(extract_label "$labels" "alignment")
-  active_class=$(extract_label "$labels" "class")
-  role=$(extract_label "$labels" "role")
-  perspective=$(extract_label "$labels" "perspective")
   char_title=$(echo "$char_json" | jq -r '.[0].title // "Unknown"')
   persona=$(echo "$char_json" | jq -r '.[0].description // ""')
 
-  if [[ -z "$alignment" ]] || ! is_alignment "$alignment"; then
-    die "Character '$char_title' has no valid alignment label."
+  # Load the character's system manifest
+  local char_system
+  char_system=$(extract_label "$labels" "system")
+  if [[ -z "$char_system" ]]; then
+    char_system="alignment-grid"
+  fi
+  load_manifest "$char_system"
+
+  # Read axis values using system-specific prefixes
+  local disp_prefix domain_prefix stance_prefix
+  disp_prefix=$(get_prefix "disposition")
+  domain_prefix=$(get_prefix "domain")
+  stance_prefix=$(get_prefix "stance")
+
+  local alignment active_class role perspective
+  alignment=$(extract_label "$labels" "$disp_prefix")
+  active_class=$(extract_label "$labels" "$domain_prefix")
+  role=$(extract_label "$labels" "role")
+  perspective=$(extract_label "$labels" "$stance_prefix")
+
+  if [[ -z "$alignment" ]] || ! is_disposition "$alignment"; then
+    die "Character '$char_title' has no valid $(get_axis_label disposition) label."
   fi
 
   local session_id
   session_id=$(ensure_session)
   set_state "$session_id" "alignment" "$alignment"
   set_state "$session_id" "active-character" "$char_id"
+  set_state "$session_id" "active-system" "$char_system"
   set_state "$session_id" "mode" "$name"
   if [[ -n "$active_class" ]]; then
     set_state "$session_id" "active-class" "$active_class"
   fi
 
-  update_settings ".npc.mode = \"$name\" | .npc.class = \"${active_class:-off}\""
+  update_settings ".npc.mode = \"$name\" | .npc.class = \"${active_class:-off}\" | .npc.system = \"$char_system\""
 
   # Output full behavioral context
   local notes_json
@@ -499,7 +613,8 @@ cmd_create() {
     esac
   done
 
-  is_alignment "$alignment" || die "Invalid alignment: $alignment. Valid: $ALIGNMENTS"
+  ensure_manifest
+  is_disposition "$alignment" || die "Invalid $(get_axis_label disposition): $alignment. Valid: $(list_axis_values disposition | tr '\n' ', ')"
 
   # Validate counts
   if [[ ${#convictions[@]} -gt 3 ]]; then
@@ -512,11 +627,16 @@ cmd_create() {
     die "Maximum 5 history entries allowed (got ${#history[@]})."
   fi
 
-  # Build labels
-  local labels="npc:character,alignment:$alignment"
-  if [[ -n "$class" ]]; then labels="$labels,class:$class"; fi
+  # Build labels using system-specific prefixes
+  local disp_prefix domain_prefix stance_prefix
+  disp_prefix=$(get_prefix "disposition")
+  domain_prefix=$(get_prefix "domain")
+  stance_prefix=$(get_prefix "stance")
+
+  local labels="npc:character,${disp_prefix}:$alignment,system:$(get_active_system)"
+  if [[ -n "$class" ]]; then labels="$labels,${domain_prefix}:$class"; fi
   if [[ -n "$role" ]]; then labels="$labels,role:$role"; fi
-  if [[ -n "$perspective" ]]; then labels="$labels,perspective:$perspective"; fi
+  if [[ -n "$perspective" ]]; then labels="$labels,${stance_prefix}:$perspective"; fi
 
   # Build notes JSON from depth fields
   local conv_json reflex_json hist_json notes_json
@@ -590,16 +710,6 @@ cmd_update() {
     esac
   done
 
-  # Validate
-  if [[ -n "$new_alignment" ]]; then
-    is_alignment "$new_alignment" || die "Invalid alignment: $new_alignment"
-  fi
-  if [[ -n "$new_class" ]]; then
-    is_class "$new_class" || die "Invalid class: $new_class"
-  fi
-  if [[ -n "$new_perspective" ]]; then
-    is_perspective "$new_perspective" || die "Invalid perspective: $new_perspective. Valid: $PERSPECTIVES"
-  fi
   if [[ ${#new_convictions[@]} -gt 3 ]]; then
     die "Maximum 3 convictions allowed (got ${#new_convictions[@]})."
   fi
@@ -610,6 +720,23 @@ cmd_update() {
   local char_id
   char_id=$(resolve_character "$name")
   [[ -z "$char_id" ]] && die "Character '$name' not found."
+
+  # Load the character's system for validation
+  local char_json_pre pre_labels char_system
+  char_json_pre=$(bd show "$char_id" --json 2>/dev/null || echo "[]")
+  pre_labels=$(echo "$char_json_pre" | jq -c '.[0].labels // []')
+  char_system=$(echo "$pre_labels" | jq -r 'map(select(startswith("system:"))) | .[0] // "system:alignment-grid"' 2>/dev/null | sed 's/^system://')
+  load_manifest "$char_system"
+
+  if [[ -n "$new_alignment" ]]; then
+    is_disposition "$new_alignment" || die "Invalid $(get_axis_label disposition): $new_alignment"
+  fi
+  if [[ -n "$new_class" ]]; then
+    is_domain "$new_class" || die "Invalid $(get_axis_label domain): $new_class"
+  fi
+  if [[ -n "$new_perspective" ]]; then
+    is_stance "$new_perspective" || die "Invalid $(get_axis_label stance): $new_perspective. Valid: $(list_axis_values stance | tr '\n' ', ')"
+  fi
 
   local char_json
   char_json=$(bd show "$char_id" --json 2>/dev/null || echo "[]")
@@ -622,22 +749,27 @@ cmd_update() {
     update_args+=(-d "$new_persona")
   fi
 
-  # Handle label changes (alignment, class, role, perspective)
+  # Handle label changes using system-specific prefixes
+  local disp_prefix domain_prefix stance_prefix
+  disp_prefix=$(get_prefix "disposition")
+  domain_prefix=$(get_prefix "domain")
+  stance_prefix=$(get_prefix "stance")
+
   if [[ -n "$new_alignment" ]]; then
     local old_alignment
-    old_alignment=$(extract_label "$labels" "alignment")
+    old_alignment=$(extract_label "$labels" "$disp_prefix")
     if [[ -n "$old_alignment" ]]; then
-      bd label remove "$char_id" "alignment:$old_alignment" 2>/dev/null || true
+      bd label remove "$char_id" "${disp_prefix}:$old_alignment" 2>/dev/null || true
     fi
-    bd label add "$char_id" "alignment:$new_alignment" 2>/dev/null
+    bd label add "$char_id" "${disp_prefix}:$new_alignment" 2>/dev/null
   fi
   if [[ -n "$new_class" ]]; then
     local old_class
-    old_class=$(extract_label "$labels" "class")
+    old_class=$(extract_label "$labels" "$domain_prefix")
     if [[ -n "$old_class" ]]; then
-      bd label remove "$char_id" "class:$old_class" 2>/dev/null || true
+      bd label remove "$char_id" "${domain_prefix}:$old_class" 2>/dev/null || true
     fi
-    bd label add "$char_id" "class:$new_class" 2>/dev/null
+    bd label add "$char_id" "${domain_prefix}:$new_class" 2>/dev/null
   fi
   if [[ -n "$new_role" ]]; then
     local old_role
@@ -649,11 +781,11 @@ cmd_update() {
   fi
   if [[ -n "$new_perspective" ]]; then
     local old_perspective
-    old_perspective=$(extract_label "$labels" "perspective")
+    old_perspective=$(extract_label "$labels" "$stance_prefix")
     if [[ -n "$old_perspective" ]]; then
-      bd label remove "$char_id" "perspective:$old_perspective" 2>/dev/null || true
+      bd label remove "$char_id" "${stance_prefix}:$old_perspective" 2>/dev/null || true
     fi
-    bd label add "$char_id" "perspective:$new_perspective" 2>/dev/null
+    bd label add "$char_id" "${stance_prefix}:$new_perspective" 2>/dev/null
   fi
 
   # Handle notes (convictions, reflexes, history)
@@ -831,19 +963,35 @@ cmd_ctx() {
   char_id=$(resolve_character "$name")
   [[ -z "$char_id" ]] && die "Character '$name' not found."
 
-  local char_json labels alignment active_class role char_title persona perspective notes_json
+  local char_json labels char_title persona notes_json
   char_json=$(bd show "$char_id" --json 2>/dev/null || echo "[]")
   labels=$(echo "$char_json" | jq -c '.[0].labels // []')
-  alignment=$(extract_label "$labels" "alignment")
-  active_class=$(extract_label "$labels" "class")
-  role=$(extract_label "$labels" "role")
-  perspective=$(extract_label "$labels" "perspective")
   char_title=$(echo "$char_json" | jq -r '.[0].title // "Unknown"')
   persona=$(echo "$char_json" | jq -r '.[0].description // ""')
   notes_json=$(read_bead_notes "$char_json")
 
-  if [[ -z "$alignment" ]] || ! is_alignment "$alignment"; then
-    die "Character '$char_title' has no valid alignment label."
+  # Load the character's system manifest (read-only — does NOT change active system)
+  local char_system
+  char_system=$(extract_label "$labels" "system")
+  if [[ -z "$char_system" ]]; then
+    char_system="alignment-grid"
+  fi
+  load_manifest "$char_system"
+
+  # Read axis values using system-specific prefixes
+  local disp_prefix domain_prefix stance_prefix
+  disp_prefix=$(get_prefix "disposition")
+  domain_prefix=$(get_prefix "domain")
+  stance_prefix=$(get_prefix "stance")
+
+  local alignment active_class role perspective
+  alignment=$(extract_label "$labels" "$disp_prefix")
+  active_class=$(extract_label "$labels" "$domain_prefix")
+  role=$(extract_label "$labels" "role")
+  perspective=$(extract_label "$labels" "$stance_prefix")
+
+  if [[ -z "$alignment" ]] || ! is_disposition "$alignment"; then
+    die "Character '$char_title' has no valid $(get_axis_label disposition) label."
   fi
 
   build_character_context "$alignment" "$active_class" "$perspective" "$persona" "$role" "$char_title" "$notes_json"
@@ -883,10 +1031,11 @@ cmd_delete() {
 
 cmd_set() {
   local alignment="${1:?Usage: npc set <alignment> [class]}"
-  is_alignment "$alignment" || die "Invalid alignment: $alignment. Valid: $ALIGNMENTS"
+  ensure_manifest
+  is_disposition "$alignment" || die "Invalid $(get_axis_label disposition): $alignment. Valid: $(list_axis_values disposition | tr '\n' ', ')"
 
   local class="${2:-}"
-  [[ -n "$class" ]] && { is_class "$class" || die "Invalid class: $class. Valid: $CLASSES"; }
+  [[ -n "$class" ]] && { is_domain "$class" || die "Invalid $(get_axis_label domain): $class. Valid: $(list_axis_values domain | tr '\n' ', ')"; }
 
   local session_id
   session_id=$(ensure_session)
@@ -899,13 +1048,14 @@ cmd_set() {
 
   update_settings ".npc.mode = \"$alignment\" | .npc.class = \"${class:-off}\""
 
-  # Output full behavioral context (anonymous mode)
-  build_character_context "$alignment" "${class:-}" "" "" "" "" "{}"
+  # Output full behavioral context (anonymous mode, default developer perspective)
+  build_character_context "$alignment" "${class:-}" "developer" "" "" "" "{}"
 }
 
 cmd_set_class() {
   local class="${1:?Usage: npc <class>}"
-  is_class "$class" || die "Invalid class: $class. Valid: $CLASSES"
+  ensure_manifest
+  is_domain "$class" || die "Invalid $(get_axis_label domain): $class. Valid: $(list_axis_values domain | tr '\n' ', ')"
 
   local session_id
   session_id=$(ensure_session)
@@ -917,7 +1067,7 @@ cmd_set_class() {
   local current_alignment
   current_alignment=$(bd state "$session_id" alignment 2>/dev/null || echo "")
   if is_alignment "$current_alignment"; then
-    build_character_context "$current_alignment" "$class" "" "" "" "" "{}"
+    build_character_context "$current_alignment" "$class" "developer" "" "" "" "{}"
   else
     echo "Set class: $class"
   fi
@@ -1167,11 +1317,15 @@ cmd_recruit() {
 
   # Resolve or create character
   local char_id char_title
-  if is_alignment "$identifier"; then
-    # Create new character from alignment
+  ensure_manifest
+  if is_disposition "$identifier"; then
+    # Create new character from disposition
     local title="${char_name:-$identifier}"
-    local labels="npc:character,alignment:$identifier"
-    if [[ -n "$class" ]]; then labels="$labels,class:$class"; fi
+    local disp_prefix domain_prefix
+    disp_prefix=$(get_prefix "disposition")
+    domain_prefix=$(get_prefix "domain")
+    local labels="npc:character,${disp_prefix}:$identifier,system:$(get_active_system)"
+    if [[ -n "$class" ]]; then labels="$labels,${domain_prefix}:$class"; fi
     if [[ -n "$role" ]]; then labels="$labels,role:$role"; fi
 
     char_id=$(bd create "$title" -t task -l "$labels" -d "${persona:-}" --silent 2>/dev/null)
@@ -1261,11 +1415,126 @@ cmd_dismiss() {
 }
 
 # ============================================================
+# SYSTEM MANAGEMENT
+# ============================================================
+
+cmd_system() {
+  local subcmd="${1:-}"
+  case "$subcmd" in
+    "")       cmd_system_info ;;
+    list)     cmd_system_list ;;
+    show)     shift; cmd_system_show "$@" ;;
+    use)      shift; cmd_system_use "$@" ;;
+    *)        cmd_system_show "$subcmd" ;;
+  esac
+}
+
+cmd_system_info() {
+  ensure_manifest
+  local desc
+  desc=$(echo "$MANIFEST" | jq -r '.description' 2>/dev/null | tr -s ' ' | head -1)
+  echo "Active system: $ACTIVE_SYSTEM"
+  echo "Description:   $desc"
+  echo ""
+  echo "Axes:"
+  for axis in disposition domain stance; do
+    local label count
+    label=$(get_axis_label "$axis")
+    count=$(echo "$MANIFEST" | jq --arg a "$axis" '.axes[$a].values | length' 2>/dev/null)
+    echo "  $label ($axis): $count values"
+  done
+}
+
+cmd_system_list() {
+  local active
+  active=$(get_active_system)
+  echo "Available systems:"
+  for dir in "$SYSTEMS_DIR"/*/; do
+    if [[ -f "$dir/system.yaml" ]]; then
+      local name desc marker=""
+      name=$(basename "$dir")
+      if [[ -f "$dir/.manifest.json" ]]; then
+        desc=$(jq -r '.description' "$dir/.manifest.json" 2>/dev/null | tr -s ' ' | head -c 60)
+      else
+        desc="(manifest not cached)"
+      fi
+      if [[ "$name" == "$active" ]]; then
+        marker=" (active)"
+      fi
+      echo "  $name — $desc$marker"
+    fi
+  done
+}
+
+cmd_system_show() {
+  local name="${1:?Usage: npc system show <name>}"
+  load_manifest "$name"
+  local desc
+  desc=$(echo "$MANIFEST" | jq -r '.description' 2>/dev/null | tr -s ' ')
+  echo "System: $name"
+  echo "Description: $desc"
+  echo ""
+
+  for axis in disposition domain stance; do
+    local label
+    label=$(get_axis_label "$axis")
+    echo "--- $label ($axis) ---"
+    echo "$MANIFEST" | jq -r --arg a "$axis" '.axes[$a].values[]' 2>/dev/null | while read -r val; do
+      local meta
+      meta=$(echo "$MANIFEST" | jq -r --arg a "$axis" --arg v "$val" '
+        .axes[$a].metadata[$v] // {} | to_entries | map("\(.key)=\(.value)") | join(", ")
+      ' 2>/dev/null)
+      if [[ -n "$meta" ]]; then
+        echo "  $val ($meta)"
+      else
+        echo "  $val"
+      fi
+    done
+    echo ""
+  done
+
+  local restricted_count cross_count
+  restricted_count=$(echo "$MANIFEST" | jq '.safety.restricted // [] | length' 2>/dev/null || echo 0)
+  cross_count=$(echo "$MANIFEST" | jq '.safety.crossConstraints // [] | length' 2>/dev/null || echo 0)
+  echo "Safety: $restricted_count restricted values, $cross_count cross-constraints"
+}
+
+cmd_system_use() {
+  local name="${1:?Usage: npc system use <name>}"
+  local system_dir="$SYSTEMS_DIR/$name"
+  [[ -f "$system_dir/system.yaml" ]] || die "System '$name' not found. Use 'npc system list'."
+
+  update_settings ".npc.system = \"$name\""
+
+  local session_id
+  session_id=$(ensure_session || echo "")
+  if [[ -n "$session_id" ]]; then
+    set_state "$session_id" "active-system" "$name"
+  fi
+
+  load_manifest "$name"
+  echo "Active system: $name"
+  echo "$(get_axis_label disposition) values: $(list_axis_values disposition | tr '\n' ' ')"
+  echo "$(get_axis_label domain) values: $(list_axis_values domain | tr '\n' ' ')"
+  echo "$(get_axis_label stance) values: $(list_axis_values stance | tr '\n' ' ')"
+}
+
+# ============================================================
 # HELP
 # ============================================================
 
 cmd_help() {
-  cat <<'HELP'
+  ensure_manifest
+  local disp_label domain_label stance_label
+  disp_label=$(get_axis_label "disposition")
+  domain_label=$(get_axis_label "domain")
+  stance_label=$(get_axis_label "stance")
+  local dispositions domains stances
+  dispositions=$(list_axis_values disposition | tr '\n' ', ' | sed 's/,$//')
+  domains=$(list_axis_values domain | tr '\n' ', ' | sed 's/,$//')
+  stances=$(list_axis_values stance | tr '\n' ', ' | sed 's/,$//')
+
+  cat <<HELP
 npc - NPC Agents CLI
 
 Status & Identity:
@@ -1275,7 +1544,7 @@ Status & Identity:
 
 Character Management:
   npc assume <name>                Assume a named character
-  npc create <name> [perspective] <alignment> [class] [flags]
+  npc create <name> [stance] <disposition> [domain] [flags]
   npc update <name> [flags]        Update character fields
   npc list [--json]                List all characters
   npc show <name> [--json]         Show character details
@@ -1290,17 +1559,19 @@ Character Management:
     --history "..."                Experience entry (up to 5, repeatable)
 
   Update-only flags:
-    --perspective developer|customer  Change perspective
-    --alignment <alignment>           Change alignment
-    --class <class>                   Change class
-
-  Perspective (positional on create):
-    developer (default)            Builder perspective
-    customer                       User/stakeholder perspective
+    --perspective <stance>            Change ${stance_label,,}
+    --alignment <disposition>         Change ${disp_label,,}
+    --class <domain>                  Change ${domain_label,,}
 
 Mode Switching:
-  npc set <alignment> [class]      Set anonymous alignment mode
+  npc set <disposition> [domain]   Set anonymous mode
   npc off                          Disable NPC Agents
+
+System Management:
+  npc system                       Show active system
+  npc system list                  List available systems
+  npc system show <name>           Show system details
+  npc system use <name>            Activate a system
 
 Party Management:
   npc party                        List all parties
@@ -1310,18 +1581,18 @@ Party Management:
   npc party active [name]          Show or set active party
 
 Recruitment:
-  npc recruit <name|alignment> [class] [--name "..."] [--persona "..."] [--role role] [--party name]
+  npc recruit <name|disposition> [domain] [--name "..."] [--persona "..."] [--role role] [--party name]
   npc dismiss <name|index|role> [--party name]
 
 Shortcuts:
-  npc <alignment>                  Same as 'npc set <alignment>'
-  npc <class>                      Set class only
+  npc <disposition>                Same as 'npc set <disposition>'
+  npc <domain>                     Set domain only
   npc <name>                       Same as 'npc assume <name>'
 
-Alignments: lawful-good, neutral-good, chaotic-good, lawful-neutral,
-            true-neutral, chaotic-neutral, lawful-evil, neutral-evil, chaotic-evil
-Classes:    fighter, wizard, rogue, cleric, bard, ranger
-Perspectives: developer, customer
+Active system: $ACTIVE_SYSTEM
+${disp_label}s: $dispositions
+${domain_label}es: $domains
+${stance_label}s: $stances
 HELP
 }
 
@@ -1350,10 +1621,12 @@ main() {
     party)             shift; cmd_party "$@" ;;
     recruit)           shift; cmd_recruit "$@" ;;
     dismiss)           shift; cmd_dismiss "$@" ;;
+    system)            shift; cmd_system "$@" ;;
     *)
-      if is_alignment "$cmd"; then
+      ensure_manifest
+      if is_disposition "$cmd"; then
         shift; cmd_set "$cmd" "$@"
-      elif is_class "$cmd"; then
+      elif is_domain "$cmd"; then
         shift; cmd_set_class "$cmd"
       else
         cmd_assume "$cmd"

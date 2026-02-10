@@ -1,45 +1,9 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "npc": {
-    "mode": "off",
-    "class": "off",
-    "safety": {
-      "evilAlignments": {
-        "enabled": true,
-        "requireConfirmation": true,
-        "blockedPaths": [
-          "auth/",
-          "billing/",
-          "crypto/",
-          "security/"
-        ],
-        "maxConsecutive": 3
-      },
-      "classRestrictions": {
-        "evilRogue": {
-          "analysisOnly": true,
-          "blockedPaths": [
-            "auth/",
-            "crypto/",
-            "security/"
-          ]
-        },
-        "evilCleric": {
-          "requireApproval": true,
-          "blockedPaths": [
-            ".github/workflows/",
-            "Jenkinsfile",
-            "Dockerfile",
-            "docker-compose",
-            "*.tf",
-            "deploy",
-            ".gitlab-ci.yml",
-            "k8s/",
-            "infrastructure/"
-          ]
-        }
-      }
-    }
+    "mode": "chaotic-good",
+    "class": "fighter",
+    "system": "alignment-grid"
   },
   "hooks": {
     "PreToolUse": [

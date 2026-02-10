@@ -1,0 +1,95 @@
+name: alignment-grid
+description: >
+  D&D-inspired 3x3 alignment grid with class archetypes.
+  Dispositions map moral orientation. Domains map expertise.
+
+axes:
+  disposition:
+    label: Alignment
+    prefix: alignment
+    description: "Behavioral orientation — how and why code is written"
+    values:
+      - lawful-good
+      - neutral-good
+      - chaotic-good
+      - lawful-neutral
+      - true-neutral
+      - chaotic-neutral
+      - lawful-evil
+      - neutral-evil
+      - chaotic-evil
+    metadata:
+      lawful-good: { short: LG }
+      neutral-good: { short: NG }
+      chaotic-good: { short: CG }
+      lawful-neutral: { short: LN }
+      true-neutral: { short: TN }
+      chaotic-neutral: { short: CN }
+      lawful-evil: { short: LE }
+      neutral-evil: { short: NE }
+      chaotic-evil: { short: CE }
+
+  domain:
+    label: Class
+    prefix: class
+    description: "Domain expertise — what and where work happens"
+    values:
+      - fighter
+      - wizard
+      - rogue
+      - cleric
+      - bard
+      - ranger
+    metadata:
+      fighter: { description: "Feature Implementation" }
+      wizard: { description: "Architecture & System Design" }
+      rogue: { description: "Security & Testing" }
+      cleric: { description: "DevOps & Infrastructure" }
+      bard: { description: "Documentation & DX" }
+      ranger: { description: "Debugging & Investigation" }
+
+  stance:
+    label: Perspective
+    prefix: perspective
+    description: "Viewpoint — as builder or user of the system"
+    values:
+      - developer
+      - customer
+
+safety:
+  restricted:
+    - value: lawful-evil
+      tag: evil
+      constraints:
+        blockedPaths: ["auth/", "billing/", "crypto/", "security/", ".env", "secrets/"]
+        requireConfirmation: true
+    - value: neutral-evil
+      tag: evil
+      constraints:
+        blockedPaths: ["auth/", "billing/", "crypto/", "security/", ".env", "secrets/"]
+        requireConfirmation: true
+    - value: chaotic-evil
+      tag: evil
+      constraints:
+        blockedPaths: ["auth/", "billing/", "crypto/", "security/", ".env", "secrets/"]
+        requireConfirmation: true
+        confirmPhrase: "unleash the gremlin"
+  crossConstraints:
+    - disposition: evil
+      domain: rogue
+      constraint:
+        analysisOnly: true
+    - disposition: evil
+      domain: cleric
+      constraint:
+        requireApproval: true
+        blockedPaths:
+          - ".github/workflows/"
+          - "Jenkinsfile"
+          - "Dockerfile"
+          - "docker-compose"
+          - "*.tf"
+          - "deploy"
+          - ".gitlab-ci.yml"
+          - "k8s/"
+          - "infrastructure/"

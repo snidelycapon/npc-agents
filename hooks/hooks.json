@@ -1,19 +1,6 @@
 {
   "description": "NPC Agents lifecycle hooks. Copy into your project's .claude/settings.json to enable.",
   "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "startup|resume",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/scripts/load-alignment.sh",
-            "timeout": 10,
-            "statusMessage": "Loading NPC character..."
-          }
-        ]
-      }
-    ],
     "PreToolUse": [
       {
         "matcher": "Skill",

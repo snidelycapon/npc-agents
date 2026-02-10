@@ -11,6 +11,9 @@
 # Beads runtime (local database, daemon, logs)
 .beads/
 
+# System manifest caches (generated from system.yaml)
+systems/*/.manifest.json
+
 # OS files
 .DS_Store
 Thumbs.db

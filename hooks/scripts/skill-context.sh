@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # PreToolUse hook (Skill): Inject current NPC state into skill context.
-# Reads from beads session bead. Requires bd and .beads/ directory.
+# Reads from beads session bead. System-aware: uses manifest for label prefixes.
 
 set -euo pipefail
 
@@ -25,6 +25,23 @@ else
   ACTIVE_PARTY=$(bd state "$SESSION_ID" active-party 2>/dev/null || echo "none")
   ACTIVE_CHARACTER=$(bd state "$SESSION_ID" active-character 2>/dev/null || echo "anonymous")
   SESSION_MODE=$(bd state "$SESSION_ID" mode 2>/dev/null || echo "off")
+  ACTIVE_SYSTEM=$(bd state "$SESSION_ID" active-system 2>/dev/null || echo "alignment-grid")
+
+  # Load manifest for label prefix resolution
+  MANIFEST=""
+  MANIFEST_FILE="systems/$ACTIVE_SYSTEM/.manifest.json"
+  if [ -f "$MANIFEST_FILE" ]; then
+    MANIFEST=$(cat "$MANIFEST_FILE")
+  fi
+
+  # Helper: get label prefix for an axis from manifest
+  get_prefix() {
+    if [ -n "$MANIFEST" ]; then
+      echo "$MANIFEST" | jq -r --arg a "$1" '.axes[$a].prefix // $a' 2>/dev/null
+    else
+      echo "$1"
+    fi
+  }
 
   # If a named character is active, load its bead details
   CHARACTER_INFO=""
@@ -32,8 +49,24 @@ else
     CHAR_JSON=$(bd show "$ACTIVE_CHARACTER" --json 2>/dev/null || echo "[]")
     CHAR_NAME=$(echo "$CHAR_JSON" | jq -r '.[0].title // "unknown"' 2>/dev/null)
     CHAR_PERSONA=$(echo "$CHAR_JSON" | jq -r '.[0].description // ""' 2>/dev/null)
-    CHAR_ROLE=$(echo "$CHAR_JSON" | jq -r '.[0].labels // [] | map(select(startswith("role:"))) | .[0] // "none"' 2>/dev/null | sed 's/^role://')
-    CHAR_PERSPECTIVE=$(echo "$CHAR_JSON" | jq -r '.[0].labels // [] | map(select(startswith("perspective:"))) | .[0] // "perspective:developer"' 2>/dev/null | sed 's/^perspective://')
+
+    # Read character's own system for label resolution
+    CHAR_SYSTEM=$(echo "$CHAR_JSON" | jq -r '.[0].labels // [] | map(select(startswith("system:"))) | .[0] // "system:alignment-grid"' 2>/dev/null | sed 's/^system://')
+    CHAR_MANIFEST=""
+    CHAR_MANIFEST_FILE="systems/$CHAR_SYSTEM/.manifest.json"
+    if [ -f "$CHAR_MANIFEST_FILE" ]; then
+      CHAR_MANIFEST=$(cat "$CHAR_MANIFEST_FILE")
+    fi
+
+    # Read labels using character's system prefixes
+    STANCE_PREFIX="perspective"
+    ROLE_PREFIX="role"
+    if [ -n "$CHAR_MANIFEST" ]; then
+      STANCE_PREFIX=$(echo "$CHAR_MANIFEST" | jq -r '.axes.stance.prefix // "perspective"' 2>/dev/null)
+    fi
+
+    CHAR_ROLE=$(echo "$CHAR_JSON" | jq -r --arg p "$ROLE_PREFIX" '.[0].labels // [] | map(select(startswith($p + ":"))) | .[0] // "none"' 2>/dev/null | sed "s/^${ROLE_PREFIX}://")
+    CHAR_PERSPECTIVE=$(echo "$CHAR_JSON" | jq -r --arg p "$STANCE_PREFIX" '.[0].labels // [] | map(select(startswith($p + ":"))) | .[0] // ($p + ":developer")' 2>/dev/null | sed "s/^${STANCE_PREFIX}://")
 
     # Read convictions from notes (compact, always relevant for context reminders)
     CONVICTIONS=""
@@ -44,6 +77,7 @@ else
 
     CHARACTER_INFO="
 - Active character: ${CHAR_NAME} (${ACTIVE_CHARACTER})
+- Character system: ${CHAR_SYSTEM}
 - Character persona: ${CHAR_PERSONA}
 - Character role: ${CHAR_ROLE}
 - Character perspective: ${CHAR_PERSPECTIVE}"
@@ -66,6 +100,7 @@ ${CONVICTIONS}"
   CONTEXT="NPC Context (injected by skill-context hook):
 - Project dir: ${PROJECT_DIR}
 - Session bead: ${SESSION_ID}
+- Active system: ${ACTIVE_SYSTEM}
 - Alignment mode: ${MODE}
 - Active alignment: ${ALIGNMENT}
 - Class mode: ${CLASS_MODE}

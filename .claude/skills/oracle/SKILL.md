@@ -18,9 +18,9 @@ disable-model-invocation: true
 | **Seer 4** | *Randomly assigned* | *Randomly assigned* | Investigation thread from their alignment + class perspective |
 
 The Coordinator (Neutral Good + Ranger) is fixed as team lead.
-The 4 Seers each receive a randomly assigned alignment AND a randomly assigned class.
-Use the d100 roll procedure (Step 2 from the Rolling Protocol in CLAUDE.md) to assign
-each Seer's alignment independently, and roll for class using the uniform profile.
+The 4 Seers each receive a randomly assigned disposition AND a randomly assigned domain
+from the active system's manifest. Run `bin/npc system show` to see available values,
+then randomly select one disposition and one domain for each Seer.
 
 ## Use Case
 
@@ -75,10 +75,9 @@ Different alignments follow fundamentally different investigation threads:
 
 ## Workflow
 
-### Step 1: Roll Alignments and Classes
-Roll a d100 four times for alignment (once for each Seer) using the default
-CONTROLLED_CHAOS profile, and roll a d100 four times for class using the
-UNIFORM profile. Announce all assignments (alignment + class) before beginning investigation.
+### Step 1: Assign Dispositions and Domains
+Randomly select from the active system's disposition and domain values (see `bin/npc system show`).
+Each Seer gets one disposition and one domain. Announce all assignments before beginning investigation.
 
 ### Step 2: Individual Investigation
 Each Seer investigates the question from their alignment's perspective.
@@ -96,10 +95,11 @@ The Coordinator (Neutral Good + Ranger) collects all findings and:
 
 ## Safety Constraints
 
-- **Max 1 Evil Seer.** If random rolls assign more than one Evil alignment,
-  reroll the extras until only one Evil remains. The Oracle benefits from one
-  adversarial perspective; more than one creates noise without signal.
-- **Evil Seers investigate, they don't execute.** An Evil-axis Seer can
+- **Max 1 restricted Seer.** If random rolls assign more than one restricted
+  disposition (per the active system's `safety.restricted` manifest), reroll
+  the extras until only one restricted Seer remains. The Oracle benefits from
+  one adversarial perspective; more than one creates noise without signal.
+- **Restricted Seers investigate, they don't execute.** A restricted Seer can
   identify weaknesses, shortcuts, and exploitable assumptions, but must not
   suggest destructive actions or produce exploit code.
 - **No confirmation needed.** The Oracle is investigation-only. No code is modified,

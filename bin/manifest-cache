@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Convert system.yaml to .manifest.json for runtime jq consumption.
+# Usage: manifest-cache <input.yaml> <output.json>
+#
+# Checks yq first (fastest), falls back to python3+pyyaml.
+# Writes atomically via tmp file + mv.
+
+set -euo pipefail
+
+YAML_FILE="${1:?Usage: manifest-cache <input.yaml> <output.json>}"
+JSON_FILE="${2:?Usage: manifest-cache <input.yaml> <output.json>}"
+
+if [[ ! -f "$YAML_FILE" ]]; then
+  echo "Error: YAML file not found: $YAML_FILE" >&2
+  exit 1
+fi
+
+TMP_FILE="${JSON_FILE}.tmp.$$"
+trap 'rm -f "$TMP_FILE"' EXIT
+
+if command -v yq &>/dev/null; then
+  yq -o=json '.' "$YAML_FILE" > "$TMP_FILE"
+elif command -v python3 &>/dev/null && python3 -c "import yaml" 2>/dev/null; then
+  python3 -c "
+import sys, yaml, json
+with open(sys.argv[1]) as f:
+    data = yaml.safe_load(f)
+json.dump(data, sys.stdout, indent=2)
+print()
+" "$YAML_FILE" > "$TMP_FILE"
+else
+  echo "Error: Neither yq nor python3+pyyaml available." >&2
+  echo "Install one of:" >&2
+  echo "  brew install yq" >&2
+  echo "  pip3 install pyyaml" >&2
+  exit 1
+fi
+
+mv "$TMP_FILE" "$JSON_FILE"

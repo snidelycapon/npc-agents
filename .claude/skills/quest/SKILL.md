@@ -52,29 +52,32 @@ bd children "$PARTY_ID" --json
 
 For each child bead, extract:
 - **name**: bead title
-- **alignment**: from `alignment:*` label
-- **class**: from `class:*` label (may be absent)
+- **alignment**: from disposition label (e.g. `alignment:*` for default system)
+- **class**: from domain label (e.g. `class:*` for default system)
 - **role**: from `role:*` label (may be absent)
 - **persona**: bead description
+- **system**: from `system:*` label (default: `alignment-grid`)
 
 If the party has no children, error: "Party **<name>** has no members. Use `/recruit` to add members first."
 
 ## Step 2: Safety Check
 
-Before executing, check for Evil-aligned members (alignment label contains "evil").
+Before executing, check for members with restricted dispositions per the active system's safety manifest.
 
-**For each Evil member:**
-- Announce: "**<name>** has an Evil alignment (<alignment>). Evil members will operate under safety constraints."
+Load the member's system manifest (`systems/<system>/.manifest.json`) and check `safety.restricted[]` for their disposition. If restricted:
 
-**If any Chaotic Evil member:**
-- Require explicit confirmation. Ask the user to type **"unleash the gremlin"** before proceeding.
+**For each restricted member:**
+- Announce: "**<name>** has a restricted disposition (<disposition>). This member will operate under safety constraints."
 
-**If any other Evil member (Lawful Evil or Neutral Evil):**
-- Announce and ask: "Proceed with Evil-aligned members? [Y / Remove]"
+**If a member's restriction has `confirmPhrase`:**
+- Require explicit confirmation. Ask the user to type the confirm phrase before proceeding.
 
-**Class-specific Evil constraints:**
-- Evil + Rogue: "This member is restricted to analysis only — no code production."
-- Evil + Cleric: "This member's infrastructure changes require explicit approval."
+**If a member's restriction has `requireConfirmation`:**
+- Announce and ask: "Proceed with restricted members? [Y / Remove]"
+
+**Cross-constraints** (`safety.crossConstraints[]`): Check disposition tag + domain combinations:
+- `analysisOnly: true`: "This member is restricted to analysis only — no code production."
+- `requireApproval: true`: "This member's changes in constrained paths require explicit approval."
 
 ## Step 3: Announce the Quest
 
