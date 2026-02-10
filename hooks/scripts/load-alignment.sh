@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# SessionStart hook: Load NPC character and inject behavioral profile into context.
+# DEPRECATED: Context injection moved to bin/npc (assume/ctx/set commands).
+# This hook is no longer invoked. Kept for reference. Safe to delete after Phase 1 verification.
+#
+# Original purpose: SessionStart hook that loaded NPC character and injected behavioral profile.
 #
 # npc.mode is one of:
 #   "off"              — NPC Agents disabled, exit silently

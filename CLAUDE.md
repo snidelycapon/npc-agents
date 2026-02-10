@@ -4,7 +4,7 @@
 
 This framework defines NPC agent **characters** — entities with a name, **alignment** (disposition), **class** (domain expertise), **persona** (personality/background), and optionally **perspective** (developer/customer), **convictions** (active priorities), **reflexes** (behavioral triggers), and **history** (narrative experience). Characters are stored as beads and can be assumed, created, listed, and organized into parties. Different characters surface different information about the code and the task.
 
-**You are operating under this framework.** Your mode is set in `settings.json` under `npc.mode`. Check your session context for your active character, alignment, and class, and commit fully to your character's behavioral profile.
+**You are operating under this framework.** Your mode is set in `settings.json` under `npc.mode`. When you assume a character via `bin/npc assume` or set an alignment via `bin/npc set`, the full behavioral profile is output directly. Commit fully to it.
 
 ---
 
@@ -12,7 +12,7 @@ This framework defines NPC agent **characters** — entities with a name, **alig
 
 The `npc.mode` setting is one of:
 
-- **A character name** (e.g., `vera`): Assume that character. The SessionStart hook loads the character's alignment, class, and persona from its bead.
+- **A character name** (e.g., `vera`): Assume that character. Running `bin/npc assume <name>` loads and outputs the character's full behavioral context (alignment, class, persona, convictions, reflexes, history, and profile content).
 - **An alignment name** (e.g., `lawful-good`): Anonymous mode with that alignment. No named character.
 - **`off`**: NPC Agents is disabled. Operate normally.
 
@@ -50,6 +50,7 @@ All management commands are handled by the `bin/npc` CLI. Slash commands (`/npc`
 | `bin/npc update <name> [flags]` | Update character fields |
 | `bin/npc list [--json]` | List all characters |
 | `bin/npc show <name> [--json]` | Show a character's details |
+| `bin/npc ctx <name>` | Output full behavioral context for a character (read-only) |
 | `bin/npc delete <name>` | Delete a character |
 | `bin/npc set <alignment> [class]` | Anonymous mode (no named character) |
 | `bin/npc off` | Disable NPC Agents |
@@ -144,6 +145,7 @@ bin/npc update <name> [--conviction "..."] [--reflex "..."] [--history "..."] \
   [--perspective dev|cust] [--persona "..."] [--alignment <a>] [--class <c>] [--role <r>]
 bin/npc list [--json]                # List characters
 bin/npc show <name> [--json]         # Show character
+bin/npc ctx <name>                   # Full behavioral context (read-only)
 bin/npc delete <name>                # Delete character
 bin/npc set <alignment> [class]      # Anonymous mode
 bin/npc off                          # Disable

@@ -29,14 +29,30 @@ else
   # If a named character is active, load its bead details
   CHARACTER_INFO=""
   if [ "$ACTIVE_CHARACTER" != "anonymous" ] && [ -n "$ACTIVE_CHARACTER" ]; then
-    CHAR_JSON=$(bd show "$ACTIVE_CHARACTER" --json 2>/dev/null || echo "{}")
-    CHAR_NAME=$(echo "$CHAR_JSON" | jq -r '.title // "unknown"')
-    CHAR_PERSONA=$(echo "$CHAR_JSON" | jq -r '.description // ""')
-    CHAR_ROLE=$(echo "$CHAR_JSON" | jq -r '.labels // [] | map(select(startswith("role:"))) | .[0] // "none"' 2>/dev/null | sed 's/^role://')
+    CHAR_JSON=$(bd show "$ACTIVE_CHARACTER" --json 2>/dev/null || echo "[]")
+    CHAR_NAME=$(echo "$CHAR_JSON" | jq -r '.[0].title // "unknown"' 2>/dev/null)
+    CHAR_PERSONA=$(echo "$CHAR_JSON" | jq -r '.[0].description // ""' 2>/dev/null)
+    CHAR_ROLE=$(echo "$CHAR_JSON" | jq -r '.[0].labels // [] | map(select(startswith("role:"))) | .[0] // "none"' 2>/dev/null | sed 's/^role://')
+    CHAR_PERSPECTIVE=$(echo "$CHAR_JSON" | jq -r '.[0].labels // [] | map(select(startswith("perspective:"))) | .[0] // "perspective:developer"' 2>/dev/null | sed 's/^perspective://')
+
+    # Read convictions from notes (compact, always relevant for context reminders)
+    CONVICTIONS=""
+    CHAR_NOTES=$(echo "$CHAR_JSON" | jq -r '.[0].notes // ""' 2>/dev/null)
+    if [ -n "$CHAR_NOTES" ] && [ "$CHAR_NOTES" != "null" ]; then
+      CONVICTIONS=$(echo "$CHAR_NOTES" | jq -r '.convictions // [] | .[]' 2>/dev/null | while IFS= read -r c; do echo "  - $c"; done)
+    fi
+
     CHARACTER_INFO="
 - Active character: ${CHAR_NAME} (${ACTIVE_CHARACTER})
 - Character persona: ${CHAR_PERSONA}
-- Character role: ${CHAR_ROLE}"
+- Character role: ${CHAR_ROLE}
+- Character perspective: ${CHAR_PERSPECTIVE}"
+
+    if [ -n "$CONVICTIONS" ]; then
+      CHARACTER_INFO="${CHARACTER_INFO}
+- Convictions:
+${CONVICTIONS}"
+    fi
   fi
 
   # Read NPC settings from settings.json

@@ -12,4 +12,4 @@ Run the CLI:
 bin/npc $ARGUMENTS
 ```
 
-Run `bin/npc help` for full usage. After switching characters or alignments, read the SKILL.md file paths printed in the output to adopt the new behavioral profile.
+Run `bin/npc help` for full usage. When switching characters or alignments, the full behavioral profile is included in the command output. Commit to it immediately.

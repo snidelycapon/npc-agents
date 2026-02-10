@@ -154,6 +154,117 @@ display_depth_fields() {
   fi
 }
 
+# Strip YAML frontmatter (--- ... ---) from a file, returning only content after second ---.
+strip_frontmatter() {
+  awk 'BEGIN{fm=0} /^---$/{fm++; next} fm>=2{print}' "$1"
+}
+
+# Build and output the full behavioral context for a character.
+# Args: alignment class perspective persona role char_title notes_json
+# If char_title is empty, this is anonymous mode (no depth fields, no identity).
+build_character_context() {
+  local alignment="$1" class="${2:-}" perspective="${3:-}" persona="${4:-}"
+  local role="${5:-}" char_title="${6:-}" notes_json="${7:-\{\}}"
+
+  # --- Header ---
+  if [[ -n "$char_title" ]]; then
+    echo "# NPC Agent: ${char_title}"
+    echo ""
+    local meta="**Alignment:** ${alignment}"
+    if [[ -n "$class" ]] && is_class "$class"; then
+      meta="$meta | **Class:** ${class}"
+    fi
+    if [[ -n "$role" ]]; then
+      meta="$meta | **Role:** ${role}"
+    fi
+    if [[ -n "$perspective" ]]; then
+      meta="$meta | **Perspective:** ${perspective}"
+    fi
+    echo "$meta"
+    if [[ -n "$persona" ]]; then
+      echo "**Persona:** ${persona}"
+    fi
+    echo ""
+    echo "You are operating as **${char_title}**. Commit fully to this character's behavioral profile — code style, decision heuristics, testing approach, communication tone, and trade-off priorities."
+    echo ""
+  else
+    echo "# NPC Agent: Anonymous"
+    echo ""
+    local meta="**Alignment:** ${alignment}"
+    if [[ -n "$class" ]] && is_class "$class"; then
+      meta="$meta | **Class:** ${class}"
+    fi
+    echo "$meta"
+    echo ""
+    echo "You are operating under this alignment's behavioral profile. Commit fully to its code style, decision heuristics, testing approach, communication tone, and trade-off priorities."
+    echo ""
+  fi
+
+  # --- Customer perspective preamble ---
+  if [[ "$perspective" == "customer" ]]; then
+    local preamble_file="$PROJECT_DIR/stances/customer.md"
+    if [[ -f "$preamble_file" ]]; then
+      cat "$preamble_file"
+      echo ""
+    fi
+  fi
+
+  # --- Depth fields (only for named characters) ---
+  if [[ -n "$char_title" && "$notes_json" != "{}" ]]; then
+    local hist_count conv_count reflex_count
+    hist_count=$(echo "$notes_json" | jq '.history // [] | length' 2>/dev/null || echo 0)
+    conv_count=$(echo "$notes_json" | jq '.convictions // [] | length' 2>/dev/null || echo 0)
+    reflex_count=$(echo "$notes_json" | jq '.reflexes // [] | length' 2>/dev/null || echo 0)
+
+    if [[ "$hist_count" -gt 0 ]]; then
+      echo "## History"
+      echo "$notes_json" | jq -r '.history[]' 2>/dev/null | while IFS= read -r line; do
+        echo "- $line"
+      done
+      echo ""
+    fi
+
+    if [[ "$conv_count" -gt 0 ]]; then
+      echo "## Convictions"
+      echo "$notes_json" | jq -r '.convictions[]' 2>/dev/null | while IFS= read -r line; do
+        echo "- $line"
+      done
+      echo ""
+    fi
+
+    if [[ "$reflex_count" -gt 0 ]]; then
+      echo "## Reflexes"
+      echo "These fire automatically before your main analysis:"
+      echo "$notes_json" | jq -r '.reflexes[]' 2>/dev/null | while IFS= read -r line; do
+        echo "- $line"
+      done
+      echo ""
+    fi
+  fi
+
+  # --- Alignment profile ---
+  local alignment_file="$SKILLS_DIR/$alignment/SKILL.md"
+  if [[ -f "$alignment_file" ]]; then
+    echo "---"
+    echo ""
+    strip_frontmatter "$alignment_file"
+    echo ""
+  fi
+
+  # --- Class profile ---
+  if [[ -n "$class" ]] && is_class "$class"; then
+    local class_file="$SKILLS_DIR/$class/SKILL.md"
+    if [[ -f "$class_file" ]]; then
+      echo "---"
+      echo ""
+      strip_frontmatter "$class_file"
+      echo ""
+    fi
+  fi
+
+  echo "---"
+}
+
 # ============================================================
 # STATUS & IDENTITY
 # ============================================================
@@ -349,21 +460,10 @@ cmd_assume() {
 
   update_settings ".npc.mode = \"$name\" | .npc.class = \"${active_class:-off}\""
 
-  echo "Assumed character: $char_title"
-  if [[ -n "$perspective" ]]; then echo "Perspective: $perspective"; fi
-  echo "Alignment:  $alignment  ->  $SKILLS_DIR/$alignment/SKILL.md"
-  if [[ -n "$active_class" ]]; then
-    echo "Class:      $active_class  ->  $SKILLS_DIR/$active_class/SKILL.md"
-  fi
-  if [[ -n "$role" ]]; then echo "Role:       $role"; fi
-  if [[ -n "$persona" ]]; then echo "Persona:    $persona"; fi
-
-  # Show depth fields if present
+  # Output full behavioral context
   local notes_json
   notes_json=$(read_bead_notes "$char_json")
-  if [[ "$notes_json" != "{}" ]]; then
-    display_depth_fields "$notes_json" ""
-  fi
+  build_character_context "$alignment" "$active_class" "$perspective" "$persona" "$role" "$char_title" "$notes_json"
 }
 
 cmd_create() {
@@ -724,6 +824,31 @@ cmd_show() {
   fi
 }
 
+cmd_ctx() {
+  local name="${1:?Usage: npc ctx <name>}"
+
+  local char_id
+  char_id=$(resolve_character "$name")
+  [[ -z "$char_id" ]] && die "Character '$name' not found."
+
+  local char_json labels alignment active_class role char_title persona perspective notes_json
+  char_json=$(bd show "$char_id" --json 2>/dev/null || echo "[]")
+  labels=$(echo "$char_json" | jq -c '.[0].labels // []')
+  alignment=$(extract_label "$labels" "alignment")
+  active_class=$(extract_label "$labels" "class")
+  role=$(extract_label "$labels" "role")
+  perspective=$(extract_label "$labels" "perspective")
+  char_title=$(echo "$char_json" | jq -r '.[0].title // "Unknown"')
+  persona=$(echo "$char_json" | jq -r '.[0].description // ""')
+  notes_json=$(read_bead_notes "$char_json")
+
+  if [[ -z "$alignment" ]] || ! is_alignment "$alignment"; then
+    die "Character '$char_title' has no valid alignment label."
+  fi
+
+  build_character_context "$alignment" "$active_class" "$perspective" "$persona" "$role" "$char_title" "$notes_json"
+}
+
 cmd_delete() {
   local name="${1:?Usage: npc delete <name>}"
 
@@ -774,11 +899,8 @@ cmd_set() {
 
   update_settings ".npc.mode = \"$alignment\" | .npc.class = \"${class:-off}\""
 
-  echo "Set anonymous mode: $alignment"
-  echo "Alignment:  $alignment  ->  $SKILLS_DIR/$alignment/SKILL.md"
-  if [[ -n "$class" ]]; then
-    echo "Class:      $class  ->  $SKILLS_DIR/$class/SKILL.md"
-  fi
+  # Output full behavioral context (anonymous mode)
+  build_character_context "$alignment" "${class:-}" "" "" "" "" "{}"
 }
 
 cmd_set_class() {
@@ -791,8 +913,14 @@ cmd_set_class() {
 
   update_settings ".npc.class = \"$class\""
 
-  echo "Set class: $class"
-  echo "Class:      $class  ->  $SKILLS_DIR/$class/SKILL.md"
+  # Output full context with current alignment + new class
+  local current_alignment
+  current_alignment=$(bd state "$session_id" alignment 2>/dev/null || echo "")
+  if is_alignment "$current_alignment"; then
+    build_character_context "$current_alignment" "$class" "" "" "" "" "{}"
+  else
+    echo "Set class: $class"
+  fi
 }
 
 cmd_off() {
@@ -1151,6 +1279,7 @@ Character Management:
   npc update <name> [flags]        Update character fields
   npc list [--json]                List all characters
   npc show <name> [--json]         Show character details
+  npc ctx <name>                   Load full behavioral context
   npc delete <name>                Delete character bead
 
   Create/Update flags:
@@ -1213,6 +1342,7 @@ main() {
     update)            shift; cmd_update "$@" ;;
     list)              shift; cmd_list "$@" ;;
     show)              shift; cmd_show "$@" ;;
+    ctx)               shift; cmd_ctx "$@" ;;
     delete)            shift; cmd_delete "$@" ;;
     set)               shift; cmd_set "$@" ;;
     off)               cmd_off ;;

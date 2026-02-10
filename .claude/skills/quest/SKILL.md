@@ -132,7 +132,7 @@ This replaces the normal analysis flow. The party works real beads tasks.
 4. **For each matched member-task pair**, execute using the chosen mode:
 
    **Council mode:** For each member sequentially:
-   - Read their alignment + class SKILL.md files
+   - Load their full context: `bin/npc ctx <member-name>`
    - Adopt their character fully (see "Council Mode" section below for details)
    - Claim: `bd update <task-id> --status=in_progress -a "<member-name>"`
    - Work the task from their perspective — actually produce the deliverable (code, analysis, design, tests, etc.)
@@ -140,8 +140,7 @@ This replaces the normal analysis flow. The party works real beads tasks.
    - Show updated swarm status: `bd swarm status <bead-id>`
 
    **Expedition mode:** For each member in parallel, launch a Task subagent whose prompt includes:
-   - The character profile (alignment, class, persona)
-   - Instructions to read their SKILL.md files
+   - The character's full context (from `bin/npc ctx <member-name>`)
    - The specific task to work (bead ID, title, description)
    - Instructions to claim (`bd update <id> --claim`), work, and close (`bd close <id>`)
 
@@ -153,23 +152,15 @@ This replaces the normal analysis flow. The party works real beads tasks.
 
 For each member in roster order:
 
-1. **Read** the member's alignment behavioral profile:
-   - Use the Read tool on `.claude/skills/<alignment>/SKILL.md`
+1. **Load** the member's full behavioral context:
+   ```bash
+   bin/npc ctx <member-name>
+   ```
+   This outputs the complete behavioral profile: alignment profile, class profile, perspective preamble, persona, convictions, reflexes, and history — all in one command.
 
-2. **Read** the member's class behavioral profile (if class is set):
-   - Use the Read tool on `.claude/skills/<class>/SKILL.md`
+2. **Fully adopt** that member's character. Inhabit their entire behavioral profile as output by the context command.
 
-3. **Fully adopt** that member's alignment and class. Inhabit their:
-   - Code style and formatting preferences
-   - Testing approach and thresholds
-   - Error handling philosophy
-   - Communication tone and verbosity
-   - Decision heuristics and trade-off priorities
-   - Domain expertise and task approach (from class)
-
-   **If the member has a persona**, layer it on top of the alignment+class directives. The persona flavors how the behavioral profile manifests.
-
-4. **Produce output** under a section header:
+3. **Produce output** under a section header:
    ```
    ---
    ## <Role>: <Name> (<Alignment> <Class>)
@@ -192,24 +183,19 @@ You are a member of an NPC Agents adventuring party on a quest.
 
 ## Your Character
 
+- **Name:** <name>
 - **Alignment:** <alignment>
 - **Class:** <class> (or "None" if no class)
-- **Name:** <name>
 - **Role:** <role> (or "General" if no role)
-<If persona is set:>
-- **Persona:** <persona>
 
 ## Load Your Behavioral Profile
 
-Read these files to understand your character's behavioral directives:
-- Read the file at: <absolute path>/.claude/skills/<alignment>/SKILL.md
-<If class is set:>
-- Read the file at: <absolute path>/.claude/skills/<class>/SKILL.md
+Run this command to get your full behavioral context:
+```bash
+bin/npc ctx <name>
+```
 
-Adopt this character fully. Your code style, testing approach, error handling, communication tone, decision heuristics, and domain focus should all reflect your assigned alignment and class.
-
-<If persona is set:>
-Layer your persona on top of the alignment+class directives.
+This outputs your alignment profile, class profile, perspective preamble, persona, convictions, reflexes, and history. Adopt the character fully.
 
 <If Evil+Rogue:>
 SAFETY CONSTRAINT: You are restricted to analysis only. Do not produce implementation code.
