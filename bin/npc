@@ -1,0 +1,1235 @@
+#!/usr/bin/env bash
+# NPC Agents CLI — lightweight character, party, and session management.
+# Replaces the procedural SKILL.md-based approach with direct bd operations.
+#
+# Usage: npc [command] [args...]
+# Run 'npc help' for full usage.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+HOOKS_DIR="$PROJECT_DIR/hooks/scripts"
+SETTINGS_FILE="$PROJECT_DIR/.claude/settings.json"
+SKILLS_DIR="$PROJECT_DIR/.claude/skills"
+
+ALIGNMENTS="lawful-good neutral-good chaotic-good lawful-neutral true-neutral chaotic-neutral lawful-evil neutral-evil chaotic-evil"
+CLASSES="fighter wizard rogue cleric bard ranger"
+PERSPECTIVES="developer customer"
+
+# ============================================================
+# UTILITY FUNCTIONS
+# ============================================================
+
+die() { echo "Error: $*" >&2; exit 1; }
+
+is_alignment() { [[ " $ALIGNMENTS " == *" $1 "* ]]; }
+is_class() { [[ " $CLASSES " == *" $1 "* ]]; }
+is_perspective() { [[ " $PERSPECTIVES " == *" $1 "* ]]; }
+
+short_alignment() {
+  case "$1" in
+    lawful-good) echo "LG" ;; neutral-good) echo "NG" ;; chaotic-good) echo "CG" ;;
+    lawful-neutral) echo "LN" ;; true-neutral) echo "TN" ;; chaotic-neutral) echo "CN" ;;
+    lawful-evil) echo "LE" ;; neutral-evil) echo "NE" ;; chaotic-evil) echo "CE" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+class_domain() {
+  case "$1" in
+    fighter) echo "Feature Implementation" ;;
+    wizard)  echo "Architecture & System Design" ;;
+    rogue)   echo "Security & Testing" ;;
+    cleric)  echo "DevOps & Infrastructure" ;;
+    bard)    echo "Documentation & DX" ;;
+    ranger)  echo "Debugging & Investigation" ;;
+    *)       echo "" ;;
+  esac
+}
+
+ensure_session() { "$HOOKS_DIR/ensure-session.sh" 2>/dev/null; }
+
+set_state() {
+  local session_id="$1" dim="$2" val="$3"
+  "$HOOKS_DIR/set-session-state.sh" "$session_id" "${dim}=${val}" 2>/dev/null || true
+}
+
+resolve_character() { "$HOOKS_DIR/resolve-character.sh" "$1" 2>/dev/null; }
+resolve_party() { "$HOOKS_DIR/resolve-party.sh" "$1" 2>/dev/null; }
+
+update_settings() {
+  local filter="$1" tmp
+  tmp=$(mktemp)
+  if jq "$filter" "$SETTINGS_FILE" > "$tmp" 2>/dev/null; then
+    mv "$tmp" "$SETTINGS_FILE"
+  else
+    rm -f "$tmp"
+    die "Failed to update settings.json"
+  fi
+}
+
+# Extract a value from a JSON labels array by prefix.
+# Usage: extract_label "$labels_json" "alignment" -> "lawful-good"
+extract_label() {
+  echo "$1" | jq -r "map(select(startswith(\"${2}:\"))) | .[0] // empty" 2>/dev/null | sed "s/^${2}://"
+}
+
+# Convert a list of strings (one per line on stdin) to a JSON array.
+# Returns "[]" if stdin is empty.
+lines_to_json_array() {
+  local input
+  input=$(cat)
+  if [[ -z "$input" ]]; then
+    echo "[]"
+  else
+    echo "$input" | jq -R . | jq -sc .
+  fi
+}
+
+# Build JSON notes object from three JSON arrays. Omits empty arrays.
+build_notes_json() {
+  local convictions_json="$1" reflexes_json="$2" history_json="$3"
+  local result="{}"
+  if [[ "$convictions_json" != "[]" ]]; then
+    result=$(echo "$result" | jq --argjson c "$convictions_json" '. + {convictions: $c}')
+  fi
+  if [[ "$reflexes_json" != "[]" ]]; then
+    result=$(echo "$result" | jq --argjson r "$reflexes_json" '. + {reflexes: $r}')
+  fi
+  if [[ "$history_json" != "[]" ]]; then
+    result=$(echo "$result" | jq --argjson h "$history_json" '. + {history: $h}')
+  fi
+  if [[ "$result" == "{}" ]]; then
+    echo ""
+  else
+    echo "$result" | jq -c .
+  fi
+}
+
+# Read notes JSON from a bead's --json output. Returns parsed JSON or "{}".
+read_bead_notes() {
+  local bead_json="$1"
+  local raw
+  raw=$(echo "$bead_json" | jq -r '.[0].notes // ""' 2>/dev/null)
+  if [[ -z "$raw" ]]; then
+    echo "{}"
+  else
+    echo "$raw" | jq '.' 2>/dev/null || echo "{}"
+  fi
+}
+
+# Display character depth fields (convictions, reflexes, history) from notes JSON.
+# Args: notes_json indent_prefix
+display_depth_fields() {
+  local notes_json="$1" prefix="${2:-  }"
+  local conv_count reflex_count hist_count
+
+  conv_count=$(echo "$notes_json" | jq '.convictions // [] | length' 2>/dev/null || echo 0)
+  reflex_count=$(echo "$notes_json" | jq '.reflexes // [] | length' 2>/dev/null || echo 0)
+  hist_count=$(echo "$notes_json" | jq '.history // [] | length' 2>/dev/null || echo 0)
+
+  if [[ "$conv_count" -gt 0 ]]; then
+    echo ""
+    echo "${prefix}CONVICTIONS"
+    echo "$notes_json" | jq -r '.convictions[]' 2>/dev/null | while IFS= read -r line; do
+      echo "${prefix}- $line"
+    done
+  fi
+
+  if [[ "$reflex_count" -gt 0 ]]; then
+    echo ""
+    echo "${prefix}REFLEXES"
+    echo "$notes_json" | jq -r '.reflexes[]' 2>/dev/null | while IFS= read -r line; do
+      echo "${prefix}- $line"
+    done
+  fi
+
+  if [[ "$hist_count" -gt 0 ]]; then
+    echo ""
+    echo "${prefix}HISTORY"
+    echo "$notes_json" | jq -r '.history[]' 2>/dev/null | while IFS= read -r line; do
+      echo "${prefix}- $line"
+    done
+  fi
+}
+
+# ============================================================
+# STATUS & IDENTITY
+# ============================================================
+
+cmd_status() {
+  local mode class_mode
+  mode=$(jq -r '.npc.mode // "off"' "$SETTINGS_FILE" 2>/dev/null)
+  class_mode=$(jq -r '.npc.class // "off"' "$SETTINGS_FILE" 2>/dev/null)
+
+  if [[ "$mode" == "off" ]]; then
+    echo "NPC Agents: off"
+    return 0
+  fi
+
+  local session_id alignment active_class active_char active_party
+  session_id=$(ensure_session || echo "")
+
+  if [[ -n "$session_id" ]]; then
+    alignment=$(bd state "$session_id" alignment 2>/dev/null || echo "$mode")
+    active_class=$(bd state "$session_id" active-class 2>/dev/null || echo "$class_mode")
+    active_char=$(bd state "$session_id" active-character 2>/dev/null || echo "anonymous")
+    active_party=$(bd state "$session_id" active-party 2>/dev/null || echo "none")
+  else
+    alignment="$mode"
+    active_class="$class_mode"
+    active_char="anonymous"
+    active_party="none"
+  fi
+
+  echo "NPC Agents: active"
+  echo "Mode:       $mode"
+
+  if [[ "$active_char" != "anonymous" && -n "$active_char" ]]; then
+    local char_json char_name char_persona labels perspective
+    char_json=$(bd show "$active_char" --json 2>/dev/null || echo "[]")
+    char_name=$(echo "$char_json" | jq -r '.[0].title // "unknown"' 2>/dev/null)
+    char_persona=$(echo "$char_json" | jq -r '.[0].description // ""' 2>/dev/null)
+    labels=$(echo "$char_json" | jq -c '.[0].labels // []' 2>/dev/null)
+    perspective=$(extract_label "$labels" "perspective")
+    echo "Character:  $char_name ($active_char)"
+    if [[ -n "$perspective" ]]; then echo "Perspective: $perspective"; fi
+    if [[ -n "$char_persona" ]]; then echo "Persona:    $char_persona"; fi
+  else
+    echo "Character:  anonymous"
+  fi
+
+  echo "Alignment:  $alignment"
+  if [[ "$active_class" != "none" && "$active_class" != "off" && -n "$active_class" ]]; then
+    echo "Class:      $active_class"
+  fi
+  if [[ "$active_party" != "none" && -n "$active_party" ]]; then
+    echo "Party:      $active_party"
+  fi
+}
+
+cmd_sheet() {
+  local session_id alignment active_class active_char active_party
+  session_id=$(ensure_session || echo "")
+
+  if [[ -z "$session_id" ]]; then
+    echo "No NPC session active."
+    return 0
+  fi
+
+  alignment=$(bd state "$session_id" alignment 2>/dev/null || echo "unknown")
+  active_class=$(bd state "$session_id" active-class 2>/dev/null || echo "none")
+  active_char=$(bd state "$session_id" active-character 2>/dev/null || echo "anonymous")
+  active_party=$(bd state "$session_id" active-party 2>/dev/null || echo "none")
+
+  echo "============================================"
+  echo "          NPC CHARACTER SHEET"
+  echo "============================================"
+  echo ""
+
+  if [[ "$active_char" != "anonymous" && -n "$active_char" ]]; then
+    local char_json title persona labels role perspective notes_json
+    char_json=$(bd show "$active_char" --json 2>/dev/null || echo "[]")
+    title=$(echo "$char_json" | jq -r '.[0].title // "Unknown"')
+    persona=$(echo "$char_json" | jq -r '.[0].description // ""')
+    labels=$(echo "$char_json" | jq -c '.[0].labels // []')
+    role=$(extract_label "$labels" "role")
+    perspective=$(extract_label "$labels" "perspective")
+    notes_json=$(read_bead_notes "$char_json")
+
+    echo "  CHARACTER"
+    echo "  Name:      $title"
+    echo "  Bead:      $active_char"
+    if [[ -n "$perspective" ]]; then
+      echo "  Perspective: $perspective"
+    fi
+    echo ""
+    echo "  ALIGNMENT"
+    echo "  Name:      $alignment ($(short_alignment "$alignment"))"
+    echo ""
+    echo "  CLASS"
+    if [[ "$active_class" != "none" && "$active_class" != "off" && -n "$active_class" ]]; then
+      echo "  Name:      $active_class"
+      echo "  Domain:    $(class_domain "$active_class")"
+    else
+      echo "  Name:      not assigned"
+    fi
+    echo ""
+    if [[ -n "$persona" ]]; then
+      echo "  PERSONA"
+      echo "  $persona"
+      echo ""
+    fi
+    if [[ -n "$role" ]]; then
+      echo "  ROLE: $role"
+      echo ""
+    fi
+
+    # Character depth fields
+    display_depth_fields "$notes_json" "  "
+
+    # Party memberships
+    local parties_json
+    parties_json=$(bd list --label npc:party -t epic --json 2>/dev/null || echo "[]")
+    local party_count
+    party_count=$(echo "$parties_json" | jq 'length' 2>/dev/null || echo 0)
+    if [[ "$party_count" -gt 0 ]]; then
+      local found_party=false
+      while IFS= read -r pid; do
+        local children
+        children=$(bd children "$pid" --json 2>/dev/null || echo "[]")
+        if echo "$children" | jq -e "map(select(.id == \"$active_char\")) | length > 0" >/dev/null 2>&1; then
+          if [[ "$found_party" == "false" ]]; then
+            echo ""
+            echo "  PARTIES"
+            found_party=true
+          fi
+          local ptitle
+          ptitle=$(echo "$parties_json" | jq -r "map(select(.id == \"$pid\")) | .[0].title")
+          echo "  - $ptitle"
+        fi
+      done < <(echo "$parties_json" | jq -r '.[].id')
+      if [[ "$found_party" == "true" ]]; then echo ""; fi
+    fi
+  else
+    echo "  CHARACTER: Anonymous"
+    echo ""
+    echo "  ALIGNMENT"
+    echo "  Name:      $alignment ($(short_alignment "$alignment"))"
+    echo ""
+    echo "  CLASS"
+    if [[ "$active_class" != "none" && "$active_class" != "off" && -n "$active_class" ]]; then
+      echo "  Name:      $active_class"
+      echo "  Domain:    $(class_domain "$active_class")"
+    else
+      echo "  Name:      not assigned"
+    fi
+    echo ""
+    echo "  Use 'npc create' to make a character"
+    echo "  Use 'npc assume <name>' to assume one"
+  fi
+
+  echo "============================================"
+}
+
+# ============================================================
+# CHARACTER CRUD
+# ============================================================
+
+cmd_assume() {
+  local name="${1:?Usage: npc assume <name>}"
+
+  local char_id
+  char_id=$(resolve_character "$name")
+  [[ -z "$char_id" ]] && die "Character '$name' not found. Use 'npc create' to create one."
+
+  local char_json labels alignment active_class role char_title persona perspective
+  char_json=$(bd show "$char_id" --json 2>/dev/null || echo "[]")
+  labels=$(echo "$char_json" | jq -c '.[0].labels // []')
+  alignment=$(extract_label "$labels" "alignment")
+  active_class=$(extract_label "$labels" "class")
+  role=$(extract_label "$labels" "role")
+  perspective=$(extract_label "$labels" "perspective")
+  char_title=$(echo "$char_json" | jq -r '.[0].title // "Unknown"')
+  persona=$(echo "$char_json" | jq -r '.[0].description // ""')
+
+  if [[ -z "$alignment" ]] || ! is_alignment "$alignment"; then
+    die "Character '$char_title' has no valid alignment label."
+  fi
+
+  local session_id
+  session_id=$(ensure_session)
+  set_state "$session_id" "alignment" "$alignment"
+  set_state "$session_id" "active-character" "$char_id"
+  set_state "$session_id" "mode" "$name"
+  if [[ -n "$active_class" ]]; then
+    set_state "$session_id" "active-class" "$active_class"
+  fi
+
+  update_settings ".npc.mode = \"$name\" | .npc.class = \"${active_class:-off}\""
+
+  echo "Assumed character: $char_title"
+  if [[ -n "$perspective" ]]; then echo "Perspective: $perspective"; fi
+  echo "Alignment:  $alignment  ->  $SKILLS_DIR/$alignment/SKILL.md"
+  if [[ -n "$active_class" ]]; then
+    echo "Class:      $active_class  ->  $SKILLS_DIR/$active_class/SKILL.md"
+  fi
+  if [[ -n "$role" ]]; then echo "Role:       $role"; fi
+  if [[ -n "$persona" ]]; then echo "Persona:    $persona"; fi
+
+  # Show depth fields if present
+  local notes_json
+  notes_json=$(read_bead_notes "$char_json")
+  if [[ "$notes_json" != "{}" ]]; then
+    display_depth_fields "$notes_json" ""
+  fi
+}
+
+cmd_create() {
+  local name="" perspective="" alignment="" class="" persona="" role=""
+  local -a convictions=()
+  local -a reflexes=()
+  local -a history=()
+
+  name="${1:?Usage: npc create <name> [perspective] <alignment> [class] [--persona \"...\"] [--role role] [--conviction \"...\"] [--reflex \"...\"] [--history \"...\"]}"
+  shift
+
+  # Optional perspective positional (customer or developer)
+  if [[ $# -gt 0 ]] && is_perspective "$1"; then
+    perspective="$1"; shift
+  fi
+
+  alignment="${1:?Usage: npc create <name> [perspective] <alignment> [class] ...}"
+  shift
+
+  # Optional class (next positional if it matches)
+  if [[ $# -gt 0 ]] && is_class "$1"; then
+    class="$1"; shift
+  fi
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --persona)     persona="${2:?--persona requires a value}"; shift 2 ;;
+      --role)        role="${2:?--role requires a value}"; shift 2 ;;
+      --conviction)  convictions+=("${2:?--conviction requires a value}"); shift 2 ;;
+      --reflex)      reflexes+=("${2:?--reflex requires a value}"); shift 2 ;;
+      --history)     history+=("${2:?--history requires a value}"); shift 2 ;;
+      *)             die "Unknown argument: $1" ;;
+    esac
+  done
+
+  is_alignment "$alignment" || die "Invalid alignment: $alignment. Valid: $ALIGNMENTS"
+
+  # Validate counts
+  if [[ ${#convictions[@]} -gt 3 ]]; then
+    die "Maximum 3 convictions allowed (got ${#convictions[@]})."
+  fi
+  if [[ ${#reflexes[@]} -gt 3 ]]; then
+    die "Maximum 3 reflexes allowed (got ${#reflexes[@]})."
+  fi
+  if [[ ${#history[@]} -gt 5 ]]; then
+    die "Maximum 5 history entries allowed (got ${#history[@]})."
+  fi
+
+  # Build labels
+  local labels="npc:character,alignment:$alignment"
+  if [[ -n "$class" ]]; then labels="$labels,class:$class"; fi
+  if [[ -n "$role" ]]; then labels="$labels,role:$role"; fi
+  if [[ -n "$perspective" ]]; then labels="$labels,perspective:$perspective"; fi
+
+  # Build notes JSON from depth fields
+  local conv_json reflex_json hist_json notes_json
+  if [[ ${#convictions[@]} -gt 0 ]]; then
+    conv_json=$(printf '%s\n' "${convictions[@]}" | lines_to_json_array)
+  else
+    conv_json="[]"
+  fi
+  if [[ ${#reflexes[@]} -gt 0 ]]; then
+    reflex_json=$(printf '%s\n' "${reflexes[@]}" | lines_to_json_array)
+  else
+    reflex_json="[]"
+  fi
+  if [[ ${#history[@]} -gt 0 ]]; then
+    hist_json=$(printf '%s\n' "${history[@]}" | lines_to_json_array)
+  else
+    hist_json="[]"
+  fi
+  notes_json=$(build_notes_json "$conv_json" "$reflex_json" "$hist_json")
+
+  # Create the bead
+  local create_args=("$name" -t task -l "$labels" -d "${persona:-}")
+  if [[ -n "$notes_json" ]]; then
+    create_args+=(--notes "$notes_json")
+  fi
+  create_args+=(--silent)
+
+  local char_id
+  char_id=$(bd create "${create_args[@]}" 2>/dev/null)
+
+  echo "Created character: $name ($char_id)"
+  if [[ -n "$perspective" ]]; then echo "Perspective: $perspective"; fi
+  echo "Alignment:  $alignment"
+  if [[ -n "$class" ]]; then echo "Class:      $class"; fi
+  if [[ -n "$role" ]]; then echo "Role:       $role"; fi
+  if [[ -n "$persona" ]]; then echo "Persona:    $persona"; fi
+  if [[ ${#convictions[@]} -gt 0 ]]; then
+    echo "Convictions: ${#convictions[@]}"
+  fi
+  if [[ ${#reflexes[@]} -gt 0 ]]; then
+    echo "Reflexes:    ${#reflexes[@]}"
+  fi
+  if [[ ${#history[@]} -gt 0 ]]; then
+    echo "History:     ${#history[@]} entries"
+  fi
+  echo ""
+  echo "Use 'npc assume $name' to play as this character."
+}
+
+cmd_update() {
+  local name="" new_persona="" new_alignment="" new_class="" new_role="" new_perspective=""
+  local -a new_convictions=()
+  local -a new_reflexes=()
+  local -a new_history=()
+  local has_convictions=false has_reflexes=false has_history=false
+
+  name="${1:?Usage: npc update <name> [--conviction \"...\"] [--reflex \"...\"] [--history \"...\"] [--perspective developer|customer] [--persona \"...\"] [--alignment <a>] [--class <c>] [--role <r>]}"
+  shift
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --persona)      new_persona="${2:?--persona requires a value}"; shift 2 ;;
+      --alignment)    new_alignment="${2:?--alignment requires a value}"; shift 2 ;;
+      --class)        new_class="${2:?--class requires a value}"; shift 2 ;;
+      --role)         new_role="${2:?--role requires a value}"; shift 2 ;;
+      --perspective)  new_perspective="${2:?--perspective requires a value}"; shift 2 ;;
+      --conviction)   new_convictions+=("${2:?--conviction requires a value}"); has_convictions=true; shift 2 ;;
+      --reflex)       new_reflexes+=("${2:?--reflex requires a value}"); has_reflexes=true; shift 2 ;;
+      --history)      new_history+=("${2:?--history requires a value}"); has_history=true; shift 2 ;;
+      *)              die "Unknown argument: $1" ;;
+    esac
+  done
+
+  # Validate
+  if [[ -n "$new_alignment" ]]; then
+    is_alignment "$new_alignment" || die "Invalid alignment: $new_alignment"
+  fi
+  if [[ -n "$new_class" ]]; then
+    is_class "$new_class" || die "Invalid class: $new_class"
+  fi
+  if [[ -n "$new_perspective" ]]; then
+    is_perspective "$new_perspective" || die "Invalid perspective: $new_perspective. Valid: $PERSPECTIVES"
+  fi
+  if [[ ${#new_convictions[@]} -gt 3 ]]; then
+    die "Maximum 3 convictions allowed (got ${#new_convictions[@]})."
+  fi
+  if [[ ${#new_reflexes[@]} -gt 3 ]]; then
+    die "Maximum 3 reflexes allowed (got ${#new_reflexes[@]})."
+  fi
+
+  local char_id
+  char_id=$(resolve_character "$name")
+  [[ -z "$char_id" ]] && die "Character '$name' not found."
+
+  local char_json
+  char_json=$(bd show "$char_id" --json 2>/dev/null || echo "[]")
+  local labels
+  labels=$(echo "$char_json" | jq -c '.[0].labels // []')
+
+  # Update simple fields via bd update
+  local update_args=("$char_id")
+  if [[ -n "$new_persona" ]]; then
+    update_args+=(-d "$new_persona")
+  fi
+
+  # Handle label changes (alignment, class, role, perspective)
+  if [[ -n "$new_alignment" ]]; then
+    local old_alignment
+    old_alignment=$(extract_label "$labels" "alignment")
+    if [[ -n "$old_alignment" ]]; then
+      bd label remove "$char_id" "alignment:$old_alignment" 2>/dev/null || true
+    fi
+    bd label add "$char_id" "alignment:$new_alignment" 2>/dev/null
+  fi
+  if [[ -n "$new_class" ]]; then
+    local old_class
+    old_class=$(extract_label "$labels" "class")
+    if [[ -n "$old_class" ]]; then
+      bd label remove "$char_id" "class:$old_class" 2>/dev/null || true
+    fi
+    bd label add "$char_id" "class:$new_class" 2>/dev/null
+  fi
+  if [[ -n "$new_role" ]]; then
+    local old_role
+    old_role=$(extract_label "$labels" "role")
+    if [[ -n "$old_role" ]]; then
+      bd label remove "$char_id" "role:$old_role" 2>/dev/null || true
+    fi
+    bd label add "$char_id" "role:$new_role" 2>/dev/null
+  fi
+  if [[ -n "$new_perspective" ]]; then
+    local old_perspective
+    old_perspective=$(extract_label "$labels" "perspective")
+    if [[ -n "$old_perspective" ]]; then
+      bd label remove "$char_id" "perspective:$old_perspective" 2>/dev/null || true
+    fi
+    bd label add "$char_id" "perspective:$new_perspective" 2>/dev/null
+  fi
+
+  # Handle notes (convictions, reflexes, history)
+  if $has_convictions || $has_reflexes || $has_history; then
+    local existing_notes
+    existing_notes=$(read_bead_notes "$char_json")
+
+    # Convictions: replace all if provided
+    local conv_json
+    if $has_convictions; then
+      conv_json=$(printf '%s\n' "${new_convictions[@]}" | lines_to_json_array)
+    else
+      conv_json=$(echo "$existing_notes" | jq -c '.convictions // []' 2>/dev/null)
+    fi
+
+    # Reflexes: replace all if provided
+    local reflex_json
+    if $has_reflexes; then
+      reflex_json=$(printf '%s\n' "${new_reflexes[@]}" | lines_to_json_array)
+    else
+      reflex_json=$(echo "$existing_notes" | jq -c '.reflexes // []' 2>/dev/null)
+    fi
+
+    # History: append if provided
+    local hist_json
+    if $has_history; then
+      local existing_hist new_hist_json
+      existing_hist=$(echo "$existing_notes" | jq -c '.history // []' 2>/dev/null)
+      new_hist_json=$(printf '%s\n' "${new_history[@]}" | lines_to_json_array)
+      hist_json=$(jq -nc --argjson a "$existing_hist" --argjson b "$new_hist_json" '$a + $b')
+      # Cap at 5 entries
+      local hist_count
+      hist_count=$(echo "$hist_json" | jq 'length')
+      if [[ "$hist_count" -gt 5 ]]; then
+        die "History would exceed 5 entries (existing + new = $hist_count). Remove some first."
+      fi
+    else
+      hist_json=$(echo "$existing_notes" | jq -c '.history // []' 2>/dev/null)
+    fi
+
+    local notes_json
+    notes_json=$(build_notes_json "$conv_json" "$reflex_json" "$hist_json")
+    if [[ -n "$notes_json" ]]; then
+      update_args+=(--notes "$notes_json")
+    fi
+  fi
+
+  # Apply the update if we have anything to update
+  if [[ ${#update_args[@]} -gt 1 ]]; then
+    bd update "${update_args[@]}" 2>/dev/null
+  fi
+
+  local char_title
+  char_title=$(echo "$char_json" | jq -r '.[0].title // "Unknown"')
+
+  echo "Updated character: $char_title ($char_id)"
+  if [[ -n "$new_alignment" ]]; then echo "  Alignment:    $new_alignment"; fi
+  if [[ -n "$new_class" ]]; then echo "  Class:        $new_class"; fi
+  if [[ -n "$new_perspective" ]]; then echo "  Perspective:  $new_perspective"; fi
+  if [[ -n "$new_role" ]]; then echo "  Role:         $new_role"; fi
+  if [[ -n "$new_persona" ]]; then echo "  Persona:      $new_persona"; fi
+  if $has_convictions; then echo "  Convictions:  ${#new_convictions[@]} (replaced)"; fi
+  if $has_reflexes; then echo "  Reflexes:     ${#new_reflexes[@]} (replaced)"; fi
+  if $has_history; then echo "  History:      +${#new_history[@]} entries (appended)"; fi
+}
+
+cmd_list() {
+  local json_flag=false
+  [[ "${1:-}" == "--json" ]] && json_flag=true
+
+  local chars_json
+  chars_json=$(bd list --label npc:character -t task --json 2>/dev/null || echo "[]")
+
+  local count
+  count=$(echo "$chars_json" | jq 'length' 2>/dev/null || echo 0)
+
+  if [[ "$count" -eq 0 ]]; then
+    echo "No characters found. Use 'npc create' to make one."
+    return 0
+  fi
+
+  if $json_flag; then
+    echo "$chars_json"
+    return 0
+  fi
+
+  printf "%-18s %-8s %-15s %-10s %-12s %s\n" "NAME" "PERSP" "ALIGNMENT" "CLASS" "ROLE" "PERSONA"
+  printf "%-18s %-8s %-15s %-10s %-12s %s\n" "----" "-----" "---------" "-----" "----" "-------"
+
+  echo "$chars_json" | jq -c '.[]' | while IFS= read -r char; do
+    local title labels alignment class role persona perspective
+    title=$(echo "$char" | jq -r '.title')
+    labels=$(echo "$char" | jq -c '.labels // []')
+    alignment=$(extract_label "$labels" "alignment")
+    class=$(extract_label "$labels" "class")
+    role=$(extract_label "$labels" "role")
+    perspective=$(extract_label "$labels" "perspective")
+    persona=$(echo "$char" | jq -r '.description // ""' | cut -c1-35)
+
+    # Show perspective as short code
+    local persp_short
+    case "${perspective:-developer}" in
+      developer) persp_short="dev" ;;
+      customer)  persp_short="cust" ;;
+      *)         persp_short="${perspective:--}" ;;
+    esac
+
+    printf "%-18s %-8s %-15s %-10s %-12s %s\n" \
+      "$title" "$persp_short" "${alignment:--}" "${class:--}" "${role:--}" "${persona:--}"
+  done
+}
+
+cmd_show() {
+  local name="${1:?Usage: npc show <name>}"
+  local json_flag=false
+  [[ "${2:-}" == "--json" ]] && json_flag=true
+
+  local char_id
+  char_id=$(resolve_character "$name")
+  [[ -z "$char_id" ]] && die "Character '$name' not found."
+
+  local char_json
+  char_json=$(bd show "$char_id" --json 2>/dev/null || echo "[]")
+
+  if $json_flag; then
+    echo "$char_json"
+    return 0
+  fi
+
+  local title alignment class role persona labels perspective notes_json
+  title=$(echo "$char_json" | jq -r '.[0].title // "Unknown"')
+  persona=$(echo "$char_json" | jq -r '.[0].description // ""')
+  labels=$(echo "$char_json" | jq -c '.[0].labels // []')
+  alignment=$(extract_label "$labels" "alignment")
+  class=$(extract_label "$labels" "class")
+  role=$(extract_label "$labels" "role")
+  perspective=$(extract_label "$labels" "perspective")
+  notes_json=$(read_bead_notes "$char_json")
+
+  echo "Character:   $title ($char_id)"
+  if [[ -n "$perspective" ]]; then
+    echo "Perspective: $perspective"
+  fi
+  echo "Alignment:   $alignment ($(short_alignment "$alignment"))"
+  if [[ -n "$class" ]]; then echo "Class:       $class ($(class_domain "$class"))"; fi
+  if [[ -n "$role" ]]; then echo "Role:        $role"; fi
+  if [[ -n "$persona" ]]; then echo "Persona:     $persona"; fi
+
+  # Depth fields
+  display_depth_fields "$notes_json" ""
+
+  # Party memberships
+  local parties_json
+  parties_json=$(bd list --label npc:party -t epic --json 2>/dev/null || echo "[]")
+  local party_count
+  party_count=$(echo "$parties_json" | jq 'length' 2>/dev/null || echo 0)
+
+  if [[ "$party_count" -gt 0 ]]; then
+    while IFS= read -r pid; do
+      local children
+      children=$(bd children "$pid" --json 2>/dev/null || echo "[]")
+      if echo "$children" | jq -e "map(select(.id == \"$char_id\")) | length > 0" >/dev/null 2>&1; then
+        local ptitle
+        ptitle=$(echo "$parties_json" | jq -r "map(select(.id == \"$pid\")) | .[0].title")
+        echo "Party:       $ptitle"
+      fi
+    done < <(echo "$parties_json" | jq -r '.[].id')
+  fi
+}
+
+cmd_delete() {
+  local name="${1:?Usage: npc delete <name>}"
+
+  local char_id
+  char_id=$(resolve_character "$name")
+  [[ -z "$char_id" ]] && die "Character '$name' not found."
+
+  local char_title
+  char_title=$(bd show "$char_id" --json 2>/dev/null | jq -r '.[0].title // "Unknown"')
+
+  bd delete "$char_id" 2>/dev/null
+
+  # If this was the active character, reset
+  local session_id active_char
+  session_id=$(ensure_session || echo "")
+  if [[ -n "$session_id" ]]; then
+    active_char=$(bd state "$session_id" active-character 2>/dev/null || echo "")
+    if [[ "$active_char" == "$char_id" ]]; then
+      set_state "$session_id" "active-character" "anonymous"
+      set_state "$session_id" "mode" "off"
+      update_settings '.npc.mode = "off"'
+      echo "Was active character — reset to off."
+    fi
+  fi
+
+  echo "Deleted character: $char_title ($char_id)"
+}
+
+# ============================================================
+# MODE SWITCHING
+# ============================================================
+
+cmd_set() {
+  local alignment="${1:?Usage: npc set <alignment> [class]}"
+  is_alignment "$alignment" || die "Invalid alignment: $alignment. Valid: $ALIGNMENTS"
+
+  local class="${2:-}"
+  [[ -n "$class" ]] && { is_class "$class" || die "Invalid class: $class. Valid: $CLASSES"; }
+
+  local session_id
+  session_id=$(ensure_session)
+  set_state "$session_id" "alignment" "$alignment"
+  set_state "$session_id" "active-character" "anonymous"
+  set_state "$session_id" "mode" "$alignment"
+  if [[ -n "$class" ]]; then
+    set_state "$session_id" "active-class" "$class"
+  fi
+
+  update_settings ".npc.mode = \"$alignment\" | .npc.class = \"${class:-off}\""
+
+  echo "Set anonymous mode: $alignment"
+  echo "Alignment:  $alignment  ->  $SKILLS_DIR/$alignment/SKILL.md"
+  if [[ -n "$class" ]]; then
+    echo "Class:      $class  ->  $SKILLS_DIR/$class/SKILL.md"
+  fi
+}
+
+cmd_set_class() {
+  local class="${1:?Usage: npc <class>}"
+  is_class "$class" || die "Invalid class: $class. Valid: $CLASSES"
+
+  local session_id
+  session_id=$(ensure_session)
+  set_state "$session_id" "active-class" "$class"
+
+  update_settings ".npc.class = \"$class\""
+
+  echo "Set class: $class"
+  echo "Class:      $class  ->  $SKILLS_DIR/$class/SKILL.md"
+}
+
+cmd_off() {
+  local session_id
+  session_id=$(ensure_session || echo "")
+  if [[ -n "$session_id" ]]; then
+    set_state "$session_id" "mode" "off"
+    set_state "$session_id" "active-character" "anonymous"
+  fi
+
+  update_settings '.npc.mode = "off" | .npc.class = "off"'
+
+  echo "NPC Agents disabled."
+}
+
+# ============================================================
+# PARTY MANAGEMENT
+# ============================================================
+
+cmd_party() {
+  local subcmd="${1:-}"
+  case "$subcmd" in
+    "")       cmd_party_list ;;
+    create)   shift; cmd_party_create "$@" ;;
+    show)     shift; cmd_party_show "$@" ;;
+    delete)   shift; cmd_party_delete "$@" ;;
+    active)   shift; cmd_party_active "$@" ;;
+    --json)   cmd_party_list "--json" ;;
+    *)        cmd_party_show "$subcmd" "${@:2}" ;;
+  esac
+}
+
+cmd_party_list() {
+  local json_flag=false
+  [[ "${1:-}" == "--json" ]] && json_flag=true
+
+  local parties_json
+  parties_json=$(bd list --label npc:party -t epic --json 2>/dev/null || echo "[]")
+  local count
+  count=$(echo "$parties_json" | jq 'length' 2>/dev/null || echo 0)
+
+  if [[ "$count" -eq 0 ]]; then
+    echo "No parties found. Use 'npc party create <name>' to make one."
+    return 0
+  fi
+
+  if $json_flag; then
+    echo "$parties_json"
+    return 0
+  fi
+
+  local session_id active_party
+  session_id=$(ensure_session || echo "")
+  active_party=""
+  [[ -n "$session_id" ]] && active_party=$(bd state "$session_id" active-party 2>/dev/null || echo "")
+
+  echo "$parties_json" | jq -c '.[]' | while IFS= read -r party; do
+    local title desc pid member_count active_marker
+    title=$(echo "$party" | jq -r '.title')
+    desc=$(echo "$party" | jq -r '.description // ""')
+    pid=$(echo "$party" | jq -r '.id')
+    member_count=$(bd children "$pid" --json 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
+    active_marker=""
+    [[ "$title" == "$active_party" ]] && active_marker=" (active)"
+
+    echo "- $title — $desc ($member_count members)$active_marker"
+  done
+}
+
+cmd_party_show() {
+  local name="${1:?Usage: npc party show <name>}"
+  local json_flag=false
+  [[ "${2:-}" == "--json" ]] && json_flag=true
+
+  local party_id
+  party_id=$(resolve_party "$name")
+  [[ -z "$party_id" ]] && die "Party '$name' not found."
+
+  local party_json children_json
+  party_json=$(bd show "$party_id" --json 2>/dev/null || echo "[]")
+  children_json=$(bd children "$party_id" --json 2>/dev/null || echo "[]")
+
+  if $json_flag; then
+    echo "{\"party\": $(echo "$party_json" | jq '.[0]'), \"members\": $children_json}"
+    return 0
+  fi
+
+  local title desc
+  title=$(echo "$party_json" | jq -r '.[0].title // "Unknown"')
+  desc=$(echo "$party_json" | jq -r '.[0].description // ""')
+
+  echo "Party: $title"
+  if [[ -n "$desc" ]]; then echo "  $desc"; fi
+  echo ""
+
+  local count
+  count=$(echo "$children_json" | jq 'length' 2>/dev/null || echo 0)
+
+  if [[ "$count" -eq 0 ]]; then
+    echo "  (no members)"
+    return 0
+  fi
+
+  printf "  %-4s %-18s %-6s %-6s %-10s %-12s %s\n" "#" "NAME" "PERSP" "ALIGN" "CLASS" "ROLE" "PERSONA"
+  printf "  %-4s %-18s %-6s %-6s %-10s %-12s %s\n" "---" "----" "-----" "-----" "-----" "----" "-------"
+
+  local i=1
+  echo "$children_json" | jq -c '.[]' | while IFS= read -r member; do
+    local mtitle malign mclass mrole mpersona mlabels mperspective mpersp_short
+    mtitle=$(echo "$member" | jq -r '.title')
+    mlabels=$(echo "$member" | jq -c '.labels // []')
+    malign=$(extract_label "$mlabels" "alignment")
+    mclass=$(extract_label "$mlabels" "class")
+    mrole=$(extract_label "$mlabels" "role")
+    mperspective=$(extract_label "$mlabels" "perspective")
+    mpersona=$(echo "$member" | jq -r '.description // ""' | cut -c1-30)
+
+    case "${mperspective:-developer}" in
+      developer) mpersp_short="dev" ;;
+      customer)  mpersp_short="cust" ;;
+      *)         mpersp_short="${mperspective:--}" ;;
+    esac
+
+    printf "  %-4s %-18s %-6s %-6s %-10s %-12s %s\n" \
+      "$i" "$mtitle" "$mpersp_short" "$(short_alignment "${malign:--}")" "${mclass:--}" "${mrole:--}" "${mpersona:--}"
+    i=$((i + 1))
+  done
+}
+
+cmd_party_create() {
+  local name="${1:?Usage: npc party create <name> [description...]}"
+  shift
+  local desc="$*"
+
+  [[ "$name" =~ ^[a-z0-9-]+$ ]] || die "Party name must be kebab-case (a-z, 0-9, hyphens): $name"
+
+  local existing
+  existing=$(resolve_party "$name")
+  [[ -n "$existing" ]] && die "Party '$name' already exists ($existing)."
+
+  local party_id
+  party_id=$(bd create "$name" -t epic -l "npc:party" -d "${desc:-}" --silent 2>/dev/null)
+
+  # If no active party, set this one
+  local session_id active_party
+  session_id=$(ensure_session)
+  active_party=$(bd state "$session_id" active-party 2>/dev/null || echo "none")
+  if [[ "$active_party" == "none" || -z "$active_party" ]]; then
+    set_state "$session_id" "active-party" "$name"
+    echo "Created party: $name ($party_id) [set as active]"
+  else
+    echo "Created party: $name ($party_id)"
+  fi
+  echo "Use 'npc recruit <name> --party $name' to add members."
+}
+
+cmd_party_delete() {
+  local name="${1:?Usage: npc party delete <name>}"
+
+  local party_id
+  party_id=$(resolve_party "$name")
+  [[ -z "$party_id" ]] && die "Party '$name' not found."
+
+  bd delete "$party_id" 2>/dev/null
+
+  # If active party, clear
+  local session_id active_party
+  session_id=$(ensure_session || echo "")
+  if [[ -n "$session_id" ]]; then
+    active_party=$(bd state "$session_id" active-party 2>/dev/null || echo "")
+    if [[ "$active_party" == "$name" ]]; then
+      set_state "$session_id" "active-party" "none"
+    fi
+  fi
+
+  echo "Deleted party: $name. Character beads preserved."
+}
+
+cmd_party_active() {
+  local name="${1:-}"
+  local session_id
+  session_id=$(ensure_session)
+
+  if [[ -z "$name" ]]; then
+    local active_party
+    active_party=$(bd state "$session_id" active-party 2>/dev/null || echo "none")
+    if [[ "$active_party" == "none" || -z "$active_party" ]]; then
+      echo "No active party. Use 'npc party active <name>' to set one."
+    else
+      echo "Active party: $active_party"
+      echo ""
+      cmd_party_show "$active_party"
+    fi
+  else
+    local party_id
+    party_id=$(resolve_party "$name")
+    [[ -z "$party_id" ]] && die "Party '$name' not found."
+
+    set_state "$session_id" "active-party" "$name"
+    echo "Active party: $name"
+    echo ""
+    cmd_party_show "$name"
+  fi
+}
+
+# ============================================================
+# RECRUITMENT
+# ============================================================
+
+cmd_recruit() {
+  local identifier="" class="" char_name="" persona="" role="" party_name=""
+
+  identifier="${1:?Usage: npc recruit <name|alignment> [class] [--name \"...\"] [--persona \"...\"] [--role role] [--party name]}"
+  shift
+
+  # Optional class (next positional if it matches)
+  if [[ $# -gt 0 ]] && is_class "$1"; then
+    class="$1"; shift
+  fi
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --name)    char_name="${2:?--name requires a value}"; shift 2 ;;
+      --persona) persona="${2:?--persona requires a value}"; shift 2 ;;
+      --role)    role="${2:?--role requires a value}"; shift 2 ;;
+      --party)   party_name="${2:?--party requires a value}"; shift 2 ;;
+      *)         die "Unknown argument: $1" ;;
+    esac
+  done
+
+  # Resolve target party
+  if [[ -z "$party_name" ]]; then
+    local session_id
+    session_id=$(ensure_session || echo "")
+    if [[ -n "$session_id" ]]; then
+      party_name=$(bd state "$session_id" active-party 2>/dev/null || echo "")
+    fi
+    [[ -z "$party_name" || "$party_name" == "none" ]] && die "No active party. Specify --party or set one with 'npc party active <name>'."
+  fi
+
+  local party_id
+  party_id=$(resolve_party "$party_name")
+  [[ -z "$party_id" ]] && die "Party '$party_name' not found."
+
+  # Resolve or create character
+  local char_id char_title
+  if is_alignment "$identifier"; then
+    # Create new character from alignment
+    local title="${char_name:-$identifier}"
+    local labels="npc:character,alignment:$identifier"
+    if [[ -n "$class" ]]; then labels="$labels,class:$class"; fi
+    if [[ -n "$role" ]]; then labels="$labels,role:$role"; fi
+
+    char_id=$(bd create "$title" -t task -l "$labels" -d "${persona:-}" --silent 2>/dev/null)
+    char_title="$title"
+  else
+    char_id=$(resolve_character "$identifier")
+    if [[ -z "$char_id" ]]; then
+      die "Character '$identifier' not found and it's not an alignment name. Use 'npc create' first."
+    fi
+    char_title=$(bd show "$char_id" --json 2>/dev/null | jq -r '.[0].title // "Unknown"')
+
+    # Apply role if provided
+    if [[ -n "$role" ]]; then
+      bd label add "$char_id" "role:$role" 2>/dev/null || true
+    fi
+  fi
+
+  # Link to party
+  bd dep add "$char_id" "$party_id" --type parent-child 2>/dev/null
+
+  local member_count
+  member_count=$(bd children "$party_id" --json 2>/dev/null | jq 'length' 2>/dev/null || echo "?")
+
+  echo "Recruited $char_title to $party_name."
+  if [[ -n "$role" ]]; then echo "Role: $role"; fi
+  echo "Party now has $member_count members."
+}
+
+cmd_dismiss() {
+  local identifier="" party_name=""
+
+  identifier="${1:?Usage: npc dismiss <name|index|role> [--party name]}"
+  shift
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --party) party_name="${2:?--party requires a value}"; shift 2 ;;
+      *)       die "Unknown argument: $1" ;;
+    esac
+  done
+
+  # Resolve party
+  if [[ -z "$party_name" ]]; then
+    local session_id
+    session_id=$(ensure_session || echo "")
+    if [[ -n "$session_id" ]]; then
+      party_name=$(bd state "$session_id" active-party 2>/dev/null || echo "")
+    fi
+    [[ -z "$party_name" || "$party_name" == "none" ]] && die "No active party. Specify --party."
+  fi
+
+  local party_id
+  party_id=$(resolve_party "$party_name")
+  [[ -z "$party_id" ]] && die "Party '$party_name' not found."
+
+  local children_json
+  children_json=$(bd children "$party_id" --json 2>/dev/null || echo "[]")
+  local count
+  count=$(echo "$children_json" | jq 'length' 2>/dev/null || echo 0)
+  [[ "$count" -eq 0 ]] && die "Party '$party_name' has no members."
+
+  # Resolve member by index, name, or role
+  local char_id="" char_title=""
+  if [[ "$identifier" =~ ^[0-9]+$ ]]; then
+    local idx=$((identifier - 1))
+    char_id=$(echo "$children_json" | jq -r ".[$idx].id // empty")
+    char_title=$(echo "$children_json" | jq -r ".[$idx].title // empty")
+    [[ -z "$char_id" ]] && die "Index $identifier out of range (1-$count)."
+  else
+    # Match by title (case-insensitive)
+    char_id=$(echo "$children_json" | jq -r "map(select(.title | ascii_downcase == (\"$identifier\" | ascii_downcase))) | .[0].id // empty")
+    if [[ -z "$char_id" ]]; then
+      # Match by role label
+      char_id=$(echo "$children_json" | jq -r "map(select(.labels // [] | any(. == \"role:$identifier\"))) | .[0].id // empty")
+    fi
+    [[ -z "$char_id" ]] && die "No member matching '$identifier' in party '$party_name'."
+    char_title=$(echo "$children_json" | jq -r "map(select(.id == \"$char_id\")) | .[0].title")
+  fi
+
+  bd dep remove "$char_id" "$party_id" 2>/dev/null
+
+  local new_count
+  new_count=$(bd children "$party_id" --json 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
+
+  echo "Dismissed $char_title from $party_name."
+  echo "Character bead preserved. Party now has $new_count members."
+}
+
+# ============================================================
+# HELP
+# ============================================================
+
+cmd_help() {
+  cat <<'HELP'
+npc - NPC Agents CLI
+
+Status & Identity:
+  npc                              Show current status
+  npc sheet                        Full character sheet
+  npc help                         This help text
+
+Character Management:
+  npc assume <name>                Assume a named character
+  npc create <name> [perspective] <alignment> [class] [flags]
+  npc update <name> [flags]        Update character fields
+  npc list [--json]                List all characters
+  npc show <name> [--json]         Show character details
+  npc delete <name>                Delete character bead
+
+  Create/Update flags:
+    --persona "..."                Character backstory
+    --role <role>                  Functional role label
+    --conviction "..."             Active priority (up to 3, repeatable)
+    --reflex "..."                 Behavioral trigger (up to 3, repeatable)
+    --history "..."                Experience entry (up to 5, repeatable)
+
+  Update-only flags:
+    --perspective developer|customer  Change perspective
+    --alignment <alignment>           Change alignment
+    --class <class>                   Change class
+
+  Perspective (positional on create):
+    developer (default)            Builder perspective
+    customer                       User/stakeholder perspective
+
+Mode Switching:
+  npc set <alignment> [class]      Set anonymous alignment mode
+  npc off                          Disable NPC Agents
+
+Party Management:
+  npc party                        List all parties
+  npc party show <name> [--json]   Show party roster
+  npc party create <name> [desc]   Create a party
+  npc party delete <name>          Delete party (characters preserved)
+  npc party active [name]          Show or set active party
+
+Recruitment:
+  npc recruit <name|alignment> [class] [--name "..."] [--persona "..."] [--role role] [--party name]
+  npc dismiss <name|index|role> [--party name]
+
+Shortcuts:
+  npc <alignment>                  Same as 'npc set <alignment>'
+  npc <class>                      Set class only
+  npc <name>                       Same as 'npc assume <name>'
+
+Alignments: lawful-good, neutral-good, chaotic-good, lawful-neutral,
+            true-neutral, chaotic-neutral, lawful-evil, neutral-evil, chaotic-evil
+Classes:    fighter, wizard, rogue, cleric, bard, ranger
+Perspectives: developer, customer
+HELP
+}
+
+# ============================================================
+# MAIN ROUTER
+# ============================================================
+
+main() {
+  cd "$PROJECT_DIR"
+
+  local cmd="${1:-}"
+
+  case "$cmd" in
+    ""|status)         cmd_status ;;
+    help|--help|-h)    cmd_help ;;
+    assume)            shift; cmd_assume "$@" ;;
+    create)            shift; cmd_create "$@" ;;
+    update)            shift; cmd_update "$@" ;;
+    list)              shift; cmd_list "$@" ;;
+    show)              shift; cmd_show "$@" ;;
+    delete)            shift; cmd_delete "$@" ;;
+    set)               shift; cmd_set "$@" ;;
+    off)               cmd_off ;;
+    sheet)             cmd_sheet ;;
+    party)             shift; cmd_party "$@" ;;
+    recruit)           shift; cmd_recruit "$@" ;;
+    dismiss)           shift; cmd_dismiss "$@" ;;
+    *)
+      if is_alignment "$cmd"; then
+        shift; cmd_set "$cmd" "$@"
+      elif is_class "$cmd"; then
+        shift; cmd_set_class "$cmd"
+      else
+        cmd_assume "$cmd"
+      fi
+      ;;
+  esac
+}
+
+main "$@"

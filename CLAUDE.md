@@ -2,7 +2,7 @@
 
 > Controlled behavioral entropy for AI coding agents.
 
-This framework defines NPC agent **characters** — entities with a name, **alignment** (disposition), **class** (domain expertise), and **persona** (personality/background). Characters are stored as beads and can be assumed, created, listed, and organized into parties. Different characters surface different information about the code and the task.
+This framework defines NPC agent **characters** — entities with a name, **alignment** (disposition), **class** (domain expertise), **persona** (personality/background), and optionally **perspective** (developer/customer), **convictions** (active priorities), **reflexes** (behavioral triggers), and **history** (narrative experience). Characters are stored as beads and can be assumed, created, listed, and organized into parties. Different characters surface different information about the code and the task.
 
 **You are operating under this framework.** Your mode is set in `settings.json` under `npc.mode`. Check your session context for your active character, alignment, and class, and commit fully to your character's behavioral profile.
 
@@ -21,7 +21,7 @@ The `npc.class` setting (anonymous mode only):
 - **A class name** (e.g., `fighter`): Use that class alongside the alignment.
 - **`off`**: No class. Alignment operates alone.
 
-Switch modes with `/npc <name|alignment|off> [class]`.
+Switch modes with `bin/npc <name|alignment|off> [class]` or via the `/npc` slash command.
 
 ---
 
@@ -33,19 +33,31 @@ Characters are beads of type `task` with label `npc:character`. Each has:
 - **Alignment**: Label `alignment:<value>` (e.g., `alignment:lawful-good`)
 - **Class**: Label `class:<value>` (e.g., `class:rogue`)
 - **Role**: Label `role:<value>` (e.g., `role:defender`)
+- **Perspective**: Label `perspective:<value>` — `developer` (default) or `customer`
 - **Persona**: Bead description (e.g., "Battle-scarred security architect with 15 years in pentesting")
+- **Convictions**: Up to 3 active priority statements (stored in bead notes as JSON)
+- **Reflexes**: Up to 3 if/then behavioral triggers (stored in bead notes as JSON)
+- **History**: Up to 5 narrative experience entries (stored in bead notes as JSON)
 
 ### Character Commands
 
+All management commands are handled by the `bin/npc` CLI. Slash commands (`/npc`, `/party`, etc.) delegate to this CLI.
+
 | Command | Action |
 |---|---|
-| `/npc <name>` | Assume a named character |
-| `/npc create <name> <alignment> [class] [--persona "..."] [--role label]` | Create a character |
-| `/npc list` | List all characters |
-| `/npc show <name>` | Show a character's sheet |
-| `/npc delete <name>` | Delete a character |
-| `/npc set <alignment> [class]` | Anonymous mode (no named character) |
-| `/npc off` | Disable NPC Agents |
+| `bin/npc assume <name>` | Assume a named character |
+| `bin/npc create <name> [perspective] <alignment> [class] [flags]` | Create a character |
+| `bin/npc update <name> [flags]` | Update character fields |
+| `bin/npc list [--json]` | List all characters |
+| `bin/npc show <name> [--json]` | Show a character's details |
+| `bin/npc delete <name>` | Delete a character |
+| `bin/npc set <alignment> [class]` | Anonymous mode (no named character) |
+| `bin/npc off` | Disable NPC Agents |
+| `bin/npc sheet` | Full character sheet |
+| `bin/npc` | Show current status |
+| `bin/npc help` | Usage reference |
+
+Create/update flags: `--persona`, `--role`, `--conviction` (x3), `--reflex` (x3), `--history` (x5). Update-only: `--perspective`, `--alignment`, `--class`.
 
 ### Session State
 
@@ -119,17 +131,44 @@ When operating under any Evil alignment:
 
 ## Operator Controls
 
-- **Assume character:** `/npc <name>`
-- **Create character:** `/npc create <name> <alignment> [class] [--persona "..."]`
-- **List characters:** `/npc list`
-- **Set anonymous mode:** `/npc set <alignment> [class]` or `/npc <alignment>`
-- **Disable:** `/npc off`
-- **Force alignment (env):** `NPC_MODE=lawful-good`
-- **Force class (env):** `NPC_CLASS=fighter`
-- **Disable (env):** `NPC_MODE=off`
-- **Character sheet:** `/character` to see full character state
-- **Current status:** `/current` for operational status + compliance
-- **Manage parties:** `/party [name|create|delete|active]`
-- **Recruit to party:** `/recruit <name|alignment> [class] [--role label] [--party name]`
-- **Dismiss from party:** `/dismiss <name|index|role> [--party name]`
+### CLI (`bin/npc`)
+
+The primary interface for NPC management. Agents call this via Bash; users can run it directly.
+
+```
+bin/npc                              # Status
+bin/npc assume <name>                # Assume character
+bin/npc create <name> [perspective] <alignment> [class] [--persona "..."] [--role role] \
+  [--conviction "..."] [--reflex "..."] [--history "..."]
+bin/npc update <name> [--conviction "..."] [--reflex "..."] [--history "..."] \
+  [--perspective dev|cust] [--persona "..."] [--alignment <a>] [--class <c>] [--role <r>]
+bin/npc list [--json]                # List characters
+bin/npc show <name> [--json]         # Show character
+bin/npc delete <name>                # Delete character
+bin/npc set <alignment> [class]      # Anonymous mode
+bin/npc off                          # Disable
+bin/npc sheet                        # Full character sheet
+bin/npc party                        # List parties
+bin/npc party show <name>            # Show roster
+bin/npc party create <name> [desc]   # Create party
+bin/npc party delete <name>          # Delete party
+bin/npc party active [name]          # Show/set active party
+bin/npc recruit <name|alignment> [class] [--name "..."] [--persona "..."] [--role role] [--party name]
+bin/npc dismiss <name|index|role> [--party name]
+```
+
+Shortcuts: `bin/npc <alignment>` sets alignment, `bin/npc <class>` sets class, `bin/npc <name>` assumes character.
+
+### Slash Commands
+
+Slash commands delegate to the CLI: `/npc`, `/party`, `/recruit`, `/dismiss`, `/character`, `/current`.
+
+### Environment Overrides
+
+- **Force alignment:** `NPC_MODE=lawful-good`
+- **Force class:** `NPC_CLASS=fighter`
+- **Disable:** `NPC_MODE=off`
+
+### Quest Dispatch
+
 - **Dispatch quest:** `/quest <task> [--mode council|expedition] [--party name]`
