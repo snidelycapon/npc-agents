@@ -200,8 +200,11 @@ Slash commands delegate to the CLI: `/npc`, `/party`, `/recruit`, `/dismiss`, `/
 - **Force class:** `NPC_CLASS=fighter`
 - **Disable:** `NPC_MODE=off`
 
-### System Builder
+### Builder (`/build`)
 
+- **Build character:** `/build` (guided), `/build <name> <alignment> [class]` (skip to history), `/build customer for <purpose>` (intent-driven)
+- **Build party:** `/build party` (guided), `/build party for <purpose>` (intent-driven)
+- **Quick mode:** `/build quick <name> <alignment> [class] [--for purpose]`, `/build quick party <name> --for <purpose>`
 - **Build system:** `/build system` (from scratch), `/build system --from <name>` (clone), `/build system --extend <name>` (add values), `/build system --resume <name>` (continue WIP)
 
 ### Quest Dispatch
