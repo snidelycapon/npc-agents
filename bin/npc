@@ -1425,6 +1425,8 @@ cmd_system() {
     list)     cmd_system_list ;;
     show)     shift; cmd_system_show "$@" ;;
     use)      shift; cmd_system_use "$@" ;;
+    create)   shift; cmd_system_create "$@" ;;
+    validate) shift; cmd_system_validate "$@" ;;
     *)        cmd_system_show "$subcmd" ;;
   esac
 }
@@ -1519,6 +1521,243 @@ cmd_system_use() {
   echo "$(get_axis_label stance) values: $(list_axis_values stance | tr '\n' ' ')"
 }
 
+cmd_system_create() {
+  local name="" from_system="" description=""
+
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --from)       from_system="${2:?--from requires a system name}"; shift 2 ;;
+      --description) description="${2:?--description requires text}"; shift 2 ;;
+      -*)           die "Unknown flag: $1" ;;
+      *)
+        if [[ -z "$name" ]]; then
+          name="$1"; shift
+        else
+          die "Unexpected argument: $1"
+        fi
+        ;;
+    esac
+  done
+
+  [[ -n "$name" ]] || die "Usage: npc system create <name> [--from <source>] [--description \"...\"]"
+
+  # Validate kebab-case name
+  if [[ ! "$name" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
+    die "System name must be kebab-case (lowercase, hyphens, no leading/trailing hyphens): $name"
+  fi
+
+  local system_dir="$SYSTEMS_DIR/$name"
+  if [[ -d "$system_dir" ]]; then
+    die "System '$name' already exists at $system_dir"
+  fi
+
+  if [[ -n "$from_system" ]]; then
+    # Clone from existing system
+    local source_dir="$SYSTEMS_DIR/$from_system"
+    if [[ ! -f "$source_dir/system.yaml" ]]; then
+      die "Source system '$from_system' not found. Use 'npc system list'."
+    fi
+    cp -r "$source_dir" "$system_dir"
+    # Update name in manifest
+    local tmp_yaml
+    tmp_yaml=$(mktemp)
+    sed "1,/^name:/{s/^name:.*/name: $name/;}" "$system_dir/system.yaml" > "$tmp_yaml"
+    mv "$tmp_yaml" "$system_dir/system.yaml"
+    # Remove stale cache
+    rm -f "$system_dir/.manifest.json"
+    echo "Cloned system '$from_system' -> '$name'"
+  else
+    # Create from scratch
+    mkdir -p "$system_dir/dispositions" "$system_dir/domains" "$system_dir/stances"
+    cat > "$system_dir/system.yaml" <<YAML
+name: $name
+description: >
+  ${description:-Custom behavioral system}
+
+axes:
+  disposition:
+    label: Disposition
+    prefix: disposition
+    description: "Behavioral orientation"
+    values: []
+
+  domain:
+    label: Domain
+    prefix: domain
+    description: "Domain expertise"
+    values: []
+
+  stance:
+    label: Stance
+    prefix: stance
+    description: "Viewpoint"
+    values: []
+
+safety:
+  restricted: []
+  crossConstraints: []
+YAML
+    echo "Created system scaffold: systems/$name/"
+  fi
+
+  # Write initial build progress
+  local now
+  now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  cat > "$system_dir/.build-progress.json" <<JSON
+{
+  "version": 1,
+  "system_name": "$name",
+  "started": "$now",
+  "updated": "$now",
+  "phases": {
+    "domain_discovery": { "status": "pending", "data": null },
+    "axis_definition": { "status": "pending", "data": null },
+    "value_elicitation": { "status": "pending", "data": null },
+    "profile_generation": { "status": "pending", "data": null },
+    "composition_check": { "status": "pending", "data": null },
+    "safety_rules": { "status": "pending", "data": null },
+    "system_preview": { "status": "pending", "data": null }
+  }
+}
+JSON
+
+  echo "  system.yaml"
+  echo "  dispositions/"
+  echo "  domains/"
+  echo "  stances/"
+  echo "  .build-progress.json"
+  echo ""
+  echo "Next: Use '/build system --resume $name' to start the guided build flow."
+}
+
+cmd_system_validate() {
+  local name="${1:?Usage: npc system validate <name>}"
+  local system_dir="$SYSTEMS_DIR/$name"
+  local errors=0 warnings=0
+
+  [[ -d "$system_dir" ]] || die "System '$name' not found at $system_dir"
+
+  echo "System: $name"
+  echo ""
+
+  # --- Manifest check ---
+  if [[ ! -f "$system_dir/system.yaml" ]]; then
+    echo "[ERROR] system.yaml not found"
+    exit 1
+  fi
+
+  # Try to load manifest
+  if ! load_manifest "$name" 2>/dev/null; then
+    echo "[ERROR] system.yaml failed to parse"
+    exit 1
+  fi
+
+  local desc
+  desc=$(echo "$MANIFEST" | jq -r '.description // ""' 2>/dev/null)
+  if [[ -z "$desc" ]]; then
+    echo "[WARN] No description in manifest"
+    warnings=$((warnings + 1))
+  fi
+  echo "Manifest: OK"
+  echo ""
+
+  # --- Profile checks per axis ---
+  for axis in disposition domain stance; do
+    local label axis_dir values_count
+    label=$(get_axis_label "$axis")
+
+    case "$axis" in
+      disposition) axis_dir="$system_dir/dispositions" ;;
+      domain)      axis_dir="$system_dir/domains" ;;
+      stance)      axis_dir="$system_dir/stances" ;;
+    esac
+
+    values_count=$(echo "$MANIFEST" | jq --arg a "$axis" '.axes[$a].values | length' 2>/dev/null)
+
+    if [[ "$values_count" == "0" ]]; then
+      echo "$label ($axis): 0 values defined [WARN: empty axis]"
+      warnings=$((warnings + 1))
+      echo ""
+      continue
+    fi
+
+    echo "$label ($axis): $values_count values defined"
+    local found=0 missing=0
+
+    echo "$MANIFEST" | jq -r --arg a "$axis" '.axes[$a].values[]' 2>/dev/null | while read -r val; do
+      local profile_file="$axis_dir/$val.md"
+      if [[ -f "$profile_file" ]]; then
+        # Check structure
+        local has_principles has_heuristics has_actions
+        has_principles=$(grep -c "^## Principles" "$profile_file" 2>/dev/null || true)
+        has_heuristics=$(grep -c "^## Heuristics" "$profile_file" 2>/dev/null || true)
+        has_actions=$(grep -c "^## Actions" "$profile_file" 2>/dev/null || true)
+
+        if [[ "$has_principles" -gt 0 && "$has_heuristics" -gt 0 && "$has_actions" -gt 0 ]]; then
+          echo "  [OK] $val"
+        else
+          local missing_sections=""
+          if [[ "$has_principles" -eq 0 ]]; then missing_sections="Principles"; fi
+          if [[ "$has_heuristics" -eq 0 ]]; then
+            if [[ -n "$missing_sections" ]]; then missing_sections="$missing_sections, "; fi
+            missing_sections="${missing_sections}Heuristics"
+          fi
+          if [[ "$has_actions" -eq 0 ]]; then
+            if [[ -n "$missing_sections" ]]; then missing_sections="$missing_sections, "; fi
+            missing_sections="${missing_sections}Actions"
+          fi
+          echo "  [WARN] $val — missing sections: $missing_sections"
+        fi
+      else
+        echo "  [!!] $val — profile MISSING"
+      fi
+    done
+
+    # Count errors/warnings from subshell via re-check
+    local missing_count
+    missing_count=$(echo "$MANIFEST" | jq -r --arg a "$axis" '.axes[$a].values[]' 2>/dev/null | while read -r val; do
+      if [[ ! -f "$axis_dir/$val.md" ]]; then echo "missing"; fi
+    done | wc -l | tr -d ' ')
+    errors=$((errors + missing_count))
+
+    echo ""
+  done
+
+  # --- Safety check ---
+  local restricted_count cross_count
+  restricted_count=$(echo "$MANIFEST" | jq '.safety.restricted // [] | length' 2>/dev/null || echo 0)
+  cross_count=$(echo "$MANIFEST" | jq '.safety.crossConstraints // [] | length' 2>/dev/null || echo 0)
+  echo "Safety: $restricted_count restricted values, $cross_count cross-constraints"
+
+  # Validate restricted values reference valid dispositions
+  if [[ "$restricted_count" -gt 0 ]]; then
+    echo "$MANIFEST" | jq -r '.safety.restricted[].value' 2>/dev/null | while read -r rval; do
+      if ! is_disposition "$rval"; then
+        echo "  [WARN] Restricted value '$rval' is not a valid disposition"
+      fi
+    done
+  fi
+  echo ""
+
+  # --- Build progress ---
+  if [[ -f "$system_dir/.build-progress.json" ]]; then
+    local complete_count total_count
+    complete_count=$(jq '[.phases[] | select(.status == "complete")] | length' "$system_dir/.build-progress.json" 2>/dev/null || echo 0)
+    total_count=$(jq '.phases | length' "$system_dir/.build-progress.json" 2>/dev/null || echo 7)
+    echo "Build progress: $complete_count/$total_count phases complete"
+    echo ""
+  fi
+
+  # --- Final verdict ---
+  if [[ "$errors" -gt 0 ]]; then
+    echo "Result: $errors error(s), $warnings warning(s)"
+    exit 1
+  else
+    echo "Result: Valid ($warnings warning(s))"
+  fi
+}
+
 # ============================================================
 # HELP
 # ============================================================
@@ -1572,6 +1811,12 @@ System Management:
   npc system list                  List available systems
   npc system show <name>           Show system details
   npc system use <name>            Activate a system
+  npc system create <name> [flags] Scaffold new system
+  npc system validate <name>       Check system completeness
+
+  Create flags:
+    --from <source>                Clone from existing system
+    --description "..."            Set system description
 
 Party Management:
   npc party                        List all parties

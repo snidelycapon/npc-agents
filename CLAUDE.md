@@ -121,6 +121,8 @@ Profiles are stored at `systems/<name>/dispositions/<value>.md`, `systems/<name>
 | `bin/npc system list` | List available systems |
 | `bin/npc system show <name>` | Show system details (all values, safety) |
 | `bin/npc system use <name>` | Switch active system |
+| `bin/npc system create <name> [--from <source>]` | Scaffold new system (or clone existing) |
+| `bin/npc system validate <name>` | Check manifest + profile completeness |
 
 The alignment and class tables below describe the default `alignment-grid` system.
 
@@ -182,19 +184,25 @@ bin/npc system                       # Show active system
 bin/npc system list                  # List available systems
 bin/npc system show <name>           # Show system details
 bin/npc system use <name>            # Switch active system
+bin/npc system create <name> [flags] # Scaffold new system (--from <source>, --description "...")
+bin/npc system validate <name>       # Check manifest + profile completeness
 ```
 
 Shortcuts: `bin/npc <alignment>` sets alignment, `bin/npc <class>` sets class, `bin/npc <name>` assumes character.
 
 ### Slash Commands
 
-Slash commands delegate to the CLI: `/npc`, `/party`, `/recruit`, `/dismiss`, `/character`, `/current`.
+Slash commands delegate to the CLI: `/npc`, `/party`, `/recruit`, `/dismiss`, `/character`, `/current`, `/build`.
 
 ### Environment Overrides
 
 - **Force alignment:** `NPC_MODE=lawful-good`
 - **Force class:** `NPC_CLASS=fighter`
 - **Disable:** `NPC_MODE=off`
+
+### System Builder
+
+- **Build system:** `/build system` (from scratch), `/build system --from <name>` (clone), `/build system --extend <name>` (add values), `/build system --resume <name>` (continue WIP)
 
 ### Quest Dispatch
 

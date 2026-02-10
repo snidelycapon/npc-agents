@@ -14,6 +14,9 @@
 # System manifest caches (generated from system.yaml)
 systems/*/.manifest.json
 
+# System build progress (WIP state during /build system)
+systems/*/.build-progress.json
+
 # OS files
 .DS_Store
 Thumbs.db
