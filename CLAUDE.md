@@ -209,4 +209,6 @@ Slash commands delegate to the CLI: `/npc`, `/party`, `/recruit`, `/dismiss`, `/
 
 ### Quest Dispatch
 
-- **Dispatch quest:** `/quest <task> [--mode council|expedition] [--party name]`
+- **Dispatch quest:** `/quest <task> [--mode council|expedition|debate] [--party name] [--conviction "..."] [--rounds N]`
+- **Debate mode:** Structured three-phase exchange (positions → exchange rounds → arbiter synthesis). Requires 2+ party members.
+- **Quest convictions:** `--conviction` flags apply shared focus to all party members for that quest (works with all modes)

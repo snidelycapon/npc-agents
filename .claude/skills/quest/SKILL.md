@@ -1,7 +1,7 @@
 ---
 name: quest
-description: "Dispatch a task to a party. Usage: /quest <task> [--mode council|expedition] [--party name] [--bead id] [--create]"
-argument-hint: "<task description> [--mode council|expedition] [--party name] [--bead id] [--create]"
+description: "Dispatch a task to a party. Usage: /quest <task> [--mode council|expedition|debate] [--party name] [--bead id] [--create] [--conviction \"...\"] [--rounds N]"
+argument-hint: "<task description> [--mode council|expedition|debate] [--party name] [--bead id] [--create] [--conviction \"...\"] [--rounds N]"
 disable-model-invocation: true
 ---
 
@@ -16,6 +16,11 @@ Quests can operate in three ways:
 - **Work a bead** (`--bead <id>`): Party members claim and execute tasks from an existing epic's ready front.
 - **Create work** (`--create`): After analysis, persist the recommendations as a beads epic with tasks.
 
+And in three execution modes:
+- **Council** (default): Single agent inhabits each member sequentially. Later members react to earlier output.
+- **Expedition**: Each member runs as a parallel subagent. Truly independent perspectives.
+- **Debate**: Structured adversarial exchange with positions, exchange rounds, and arbiter synthesis.
+
 ## Arguments
 
 `$ARGUMENTS`
@@ -23,14 +28,21 @@ Quests can operate in three ways:
 ## Parse Arguments
 
 - **task** (required): Everything that isn't a flag. This is the quest description.
-- **--mode council|expedition**: Execution mode. Default: `council`.
+- **--mode council|expedition|debate**: Execution mode. Default: `council`.
   - `council`: Single agent inhabits each member's perspective sequentially.
   - `expedition`: Each member runs as a parallel subagent via the Task tool.
+  - `debate`: Structured three-phase adversarial exchange with arbiter synthesis.
 - **--party name**: Target party. If omitted, uses the active party.
 - **--bead id**: An existing epic or task bead ID. Party members work its ready front instead of giving analysis.
 - **--create**: After analysis, create a beads epic with child tasks from the synthesis recommendations.
+- **--conviction "..."**: Repeatable. Quest-level conviction that applies to ALL party members for this quest. Supplements (does not replace) personal convictions. Works with all modes.
+- **--rounds N**: Number of exchange rounds for debate mode. Default: 2. Range: 1-4. Ignored in council/expedition mode.
 
 `--bead` and `--create` are mutually exclusive. If both are provided, error: "Use `--bead` to work existing beads or `--create` to generate new ones, not both."
+
+`--mode debate` and `--bead` are mutually exclusive. Debate mode is for analysis, not execution. If both are provided, error: "Debate mode is for structured analysis. Use `--mode council` or `--mode expedition` with `--bead` to work existing beads."
+
+`--mode debate` requires at least 2 party members. If the party has fewer than 2 members, error: "Debate mode requires at least 2 party members to exchange positions."
 
 ## Member Display Convention
 
@@ -57,6 +69,8 @@ For each child bead, extract:
 - **role**: from `role:*` label (may be absent)
 - **persona**: bead description
 - **system**: from `system:*` label (default: `alignment-grid`)
+- **perspective**: from stance label (e.g. `perspective:*` for default system, default: `developer`)
+- **convictions**: from bead notes JSON `.convictions[]` (may be empty)
 
 If the party has no children, error: "Party **<name>** has no members. Use `/recruit` to add members first."
 
@@ -87,8 +101,13 @@ Display the quest briefing:
 ## Quest Briefing
 
 **Party:** <party-name> (<N> members)
-**Mode:** <council|expedition>
+**Mode:** <council|expedition|debate>
 **Task:** <task description>
+```
+
+If `--mode debate`, also show:
+```
+**Rounds:** <N>
 ```
 
 If `--bead` is set, also show:
@@ -99,10 +118,10 @@ And run `bd swarm status <bead-id>` to show the current ready front.
 
 ```
 ### Roster
-| # | Name | Alignment | Class | Role |
-|---|------|-----------|-------|------|
-| 1 | <name> | <alignment> | <class or "—"> | <role or "—"> |
-| ... | ... | ... | ... | ... |
+| # | Name | Alignment | Class | Perspective | Role |
+|---|------|-----------|-------|-------------|------|
+| 1 | <name> | <alignment> | <class or "—"> | <perspective> | <role or "—"> |
+| ... | ... | ... | ... | ... | ... |
 ```
 
 If any members have a persona, list them:
@@ -110,6 +129,21 @@ If any members have a persona, list them:
 ```
 **Personas:**
 - **<name>**: <persona text>
+```
+
+If any members have convictions, list them:
+
+```
+**Member Convictions:**
+- **<name>**: <conviction 1>; <conviction 2>; <conviction 3>
+```
+
+If `--conviction` flags were provided, show them:
+
+```
+**Quest Convictions (shared by all members):**
+- <conviction 1>
+- <conviction 2>
 ```
 
 ## Step 4: Execute
@@ -163,7 +197,17 @@ For each member in roster order:
 
 2. **Fully adopt** that member's character. Inhabit their entire behavioral profile as output by the context command.
 
-3. **Produce output** under a section header:
+3. **Inject quest-level convictions** (if any `--conviction` flags were provided):
+   After adopting the member's character context, apply quest convictions as supplementary focus:
+   ```
+   ## Quest Convictions (shared focus for this quest)
+   These supplement your personal convictions for this quest:
+   - <quest conviction 1>
+   - <quest conviction 2>
+   ```
+   These layer on top of the member's personal convictions. Do not replace personal convictions.
+
+4. **Produce output** under a section header:
    ```
    ---
    ## <Role>: <Name> (<Alignment> <Class>)
@@ -171,7 +215,7 @@ For each member in roster order:
    Use role if set, otherwise omit the prefix.
    Examples: `## Defender: Vera (LG Rogue)`, `## Kai (CG Fighter)`
 
-5. Address the quest task from this member's perspective. Be thorough.
+5. Address the quest task from this member's perspective. Be thorough. If quest convictions were provided, let them shape your focus alongside your personal convictions.
 
 ### Expedition Mode (Parallel Subagents)
 
@@ -206,6 +250,14 @@ SAFETY CONSTRAINT: You are restricted to analysis only. Do not produce implement
 <If Evil+Cleric:>
 SAFETY CONSTRAINT: Any infrastructure changes must be flagged for operator approval.
 
+<If --conviction flags provided:>
+## Quest Convictions (shared focus for this quest)
+These supplement your personal convictions for this quest:
+- <quest conviction 1>
+- <quest conviction 2>
+...
+Apply these alongside your character's own convictions.
+
 ## The Quest
 
 <task description>
@@ -222,9 +274,138 @@ Structure your output as:
 
 After all subagents complete, **collect their outputs**.
 
+### Debate Mode (Structured Adversarial Exchange)
+
+Debate mode runs a three-phase structured exchange: Positions, Exchange, and Synthesis. It produces dialectic output where positions clash and merge through structured rounds, surfacing genuine disagreements and concessions.
+
+**Debate is always analysis-only.** It cannot be combined with `--bead`. It can be combined with `--create` (the arbiter's synthesis recommendations become persisted beads).
+
+Begin the debate output with:
+
+```
+---
+## Debate: <quest task>
+
+**Party:** <party-name> (<N> debaters + arbiter)
+**Rounds:** <N>
+
+---
+```
+
+#### Phase 1: Positions
+
+Each party member states their core position on the quest task. Process members sequentially (council-style). For each member in roster order:
+
+1. **Load** the member's full behavioral context:
+   ```bash
+   bin/npc ctx <member-name>
+   ```
+
+2. **Fully adopt** that member's character. Inhabit their entire behavioral profile as output by the context command.
+
+3. **Inject quest-level convictions** (if any), same as in council mode.
+
+4. **Produce a position statement** under the section:
+   ```
+   ### Positions
+
+   #### <Name> (<Alignment> <Class> · <Perspective>)
+   <2-4 sentence position statement. State what you think about the quest task and why.
+   No rebuttals, no reactions to other members. Just your core position.>
+   ```
+
+**Critical constraint:** In the Positions phase, do NOT reference other members' positions. Each position must be independent. Even though earlier positions are visible in the output, pretend they do not exist yet. This prevents drift and ensures honest initial positions.
+
+#### Phase 2: Exchange
+
+Run the configured number of rounds (default: 2). Each round processes all members sequentially. For each round:
+
+Output the round header:
+```
+---
+
+### Exchange — Round <N>
+```
+
+For each member in roster order:
+
+1. **Re-adopt** the member's character (reload context via `bin/npc ctx <member-name>` if needed for fresh grounding).
+
+2. The full debate context so far — all positions from Phase 1 and all prior round outputs — is visible in the conversation. Use it.
+
+3. **Produce a response** that:
+   - Addresses at least one other member's position or prior response **by name**
+   - Engages with substance, not just restating their own position
+   - May concede points ("Marcus is right that..."), strengthen their position ("Sam's concern actually supports my point because..."), or challenge ("Vera's assumption that X doesn't hold because...")
+
+4. **Output format:**
+   ```
+   #### <Name>
+   <Response addressing other members' positions by name.
+   Build on the full debate so far.
+   Later rounds should reflect sharpened positions — narrower claims, specific concessions,
+   direct rebuttals to the strongest opposing arguments.>
+   ```
+
+**Round dynamics:** Within a single round, each member responds based on all positions and all prior rounds. Members producing output later in the same round will naturally see earlier same-round responses — this is acceptable and adds richness. The key constraint is that each member must primarily engage with prior content, not just react to the member who spoke immediately before.
+
+**Progression:** Round 1 should be exploratory — finding points of agreement and disagreement. Round 2 should sharpen — narrowing to the core tensions. Round 3+ (if configured) should converge — making final concessions and drawing lines.
+
+#### Phase 3: Synthesis (Arbiter)
+
+After all exchange rounds complete, **step out of all party member characters**. Adopt the Arbiter role:
+
+```
+---
+
+### Synthesis (Arbiter)
+```
+
+**Arbiter Profile:**
+- **Alignment:** Neutral Good
+- **Class:** None
+- **Role:** Synthesis only
+- The arbiter did **not** participate in Phases 1 or 2
+- The arbiter does **not** advocate for any position
+- The arbiter reads all output and produces a fair merged recommendation
+
+**The Concession Principle:** Every position that survived the exchange is represented in the final recommendation, proportional to how well it held up:
+- **Strongest surviving points** get primary weight in the recommendation
+- **Weaker points that weren't fully refuted** are acknowledged as caveats or secondary recommendations
+- **Points convincingly defeated** are noted as considered-and-set-aside
+- This prevents winner-take-all outcomes — a minority position that raised a legitimate concern still influences the recommendation
+
+**Arbiter output:**
+
+```
+#### Recommendation
+<Merged recommendation incorporating all surviving positions proportionally.
+This is the debate's primary output — a balanced synthesis where every
+surviving position has influence proportional to how well it held up.>
+
+#### Surviving Points
+| Member | Position | Outcome |
+|--------|----------|---------|
+| <name> | <core claim from their position> | Adopted / Adopted with modification / Acknowledged as caveat / Considered and set aside |
+| ... | ... | ... |
+
+#### Unresolved Tensions
+<Disagreements the party could not settle — flagged for the operator to decide.
+If none, state "None — all tensions were resolved through exchange.">
+
+#### Concessions Made
+<Specific points where the recommendation incorporates minority positions.
+Name the member whose point was incorporated and explain how it shaped the recommendation.
+If no minority positions were incorporated, state "None — recommendation reflects consensus.">
+```
+
+After the arbiter synthesis, if `--create` is set, proceed to the "Persist as Beads" step using the arbiter's recommendation as the source for task creation.
+
 ## Step 5: Synthesize
 
-After all member perspectives (from either mode), step out of character and provide:
+**If `--mode debate`:** Skip this step. Debate mode produces its own synthesis via the Arbiter in Phase 3. Proceed directly to "Persist as Beads" if `--create` is set.
+
+After all member perspectives (from council or expedition mode), step out of character and provide:
 
 ```
 ---
@@ -298,9 +479,12 @@ After working the ready front, show final status instead of the normal synthesis
 
 ## Notes
 
-- **Council mode** processes sequentially — later members can react to earlier output. Good for debates.
+- **Council mode** processes sequentially — later members can react to earlier output. Good for iterative refinement.
 - **Expedition mode** spawns parallel subagents — truly independent perspectives. Good for unbiased comparison.
-- **Party size:** 2-4 members is the sweet spot. 5-6 works but produces long output.
+- **Debate mode** runs structured adversarial exchange — positions clash and merge through rounds. Good for resolving disagreements, evaluating trade-offs, and feature planning.
+- **Party size:** 2-4 members is the sweet spot. 5-6 works but produces long output. Debate mode with 4+ members and 3+ rounds produces very long output — consider 2-3 members for debates.
+- **Quest convictions** (`--conviction`) work with ALL modes, not just debate. They focus the entire party's attention on context-specific concerns for the duration of the quest.
 - **`--bead` mode** is for working through existing tracked work. The party executes, not just analyzes.
-- **`--create` mode** turns analysis into tracked beads. Good when a quest surfaces work that should be persistent.
+- **`--create` mode** turns analysis into tracked beads. Works with council, expedition, and debate modes. For debate, the arbiter's synthesis recommendations become the persisted work items.
 - **Default mode** (no flags) is the original one-shot analysis. Still useful for quick perspectives without beads overhead.
+- **Debate + `--create`** uses the arbiter's recommendation as the source for epic/task creation. The surviving points table maps naturally to individual tasks.
