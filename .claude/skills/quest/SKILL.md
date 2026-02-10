@@ -369,11 +369,13 @@ After all exchange rounds complete, **step out of all party member characters**.
 - The arbiter does **not** advocate for any position
 - The arbiter reads all output and produces a fair merged recommendation
 
-**The Concession Principle:** Every position that survived the exchange is represented in the final recommendation, proportional to how well it held up:
-- **Strongest surviving points** get primary weight in the recommendation
-- **Weaker points that weren't fully refuted** are acknowledged as caveats or secondary recommendations
-- **Points convincingly defeated** are noted as considered-and-set-aside
-- This prevents winner-take-all outcomes — a minority position that raised a legitimate concern still influences the recommendation
+**The Concession Principle:** Every position that survived the exchange is represented in the final recommendation. Assign outcomes using these heuristics:
+- **Adopted**: Points neither side refuted during exchange — they stood unchallenged or were reinforced
+- **Adopted with modification**: Points that held but required qualification from opposing arguments (e.g., "yes, but only when...")
+- **Acknowledged as caveat**: Points that lost ground overall but raised a legitimate edge case or risk worth noting
+- **Considered and set aside**: Points conclusively countered by stronger arguments with evidence or reasoning
+
+This prevents winner-take-all outcomes — a minority position that raised a legitimate concern still influences the recommendation as a caveat.
 
 **Arbiter output:**
 
@@ -399,7 +401,12 @@ Name the member whose point was incorporated and explain how it shaped the recom
 If no minority positions were incorporated, state "None — recommendation reflects consensus.">
 ```
 
-After the arbiter synthesis, if `--create` is set, proceed to the "Persist as Beads" step using the arbiter's recommendation as the source for task creation.
+After the arbiter synthesis, if `--create` is set, proceed to the "Persist as Beads" step. For debate mode, map arbiter output to beads as follows:
+- **Arbiter Recommendation** → epic description
+- **Each "Adopted" or "Adopted with modification" row** in Surviving Points → child task, assigned to the member who championed it
+- **Unresolved Tensions** → spike tasks (type `chore`) flagged for operator decision, with the tension as the description
+- **"Acknowledged as caveat" rows** → notes in the epic description, not separate tasks
+- **"Considered and set aside" rows** → omitted from beads (they were resolved during debate)
 
 ## Step 5: Synthesize
 

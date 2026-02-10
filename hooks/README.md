@@ -6,7 +6,6 @@ Claude Code lifecycle hooks that automate NPC Agents behavior.
 
 | Script | Event | Purpose |
 |---|---|---|
-| `load-alignment.sh` | SessionStart | Loads character or alignment from config, sets session bead state |
 | `skill-context.sh` | PreToolUse (Skill) | Injects NPC state into skill context |
 | `alignment-restrictions.sh` | PreToolUse (Write/Edit/Bash) | Blocks Evil alignments from sensitive paths |
 
@@ -19,19 +18,6 @@ To use hooks in another project, add to that project's `.claude/settings.json`:
 ```json
 {
   "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "startup|resume",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/path/to/npc-agents/hooks/scripts/load-alignment.sh",
-            "timeout": 10,
-            "statusMessage": "Loading NPC character..."
-          }
-        ]
-      }
-    ],
     "PreToolUse": [
       {
         "matcher": "Skill",
@@ -69,13 +55,7 @@ Set character or alignment in `.claude/settings.json`:
   "npc": {
     "mode": "vera",
     "class": "rogue",
-    "safety": {
-      "evilAlignments": {
-        "enabled": true,
-        "requireConfirmation": true,
-        "blockedPaths": ["auth/", "billing/", "crypto/"]
-      }
-    }
+    "system": "alignment-grid"
   }
 }
 ```
@@ -87,6 +67,8 @@ The `mode` field accepts:
 
 The `class` field accepts a class name (`fighter`) or `off`. Only used in anonymous mode — characters carry their own class.
 
+The `system` field sets the active behavioral system. Default: `alignment-grid`. Safety rules are defined per-system in `systems/<name>/system.yaml`.
+
 ### Environment Overrides
 
 ```bash
@@ -96,13 +78,6 @@ export NPC_MODE=off            # Disable
 ```
 
 ## Hook Details
-
-### SessionStart: Load Alignment
-
-Runs when a session starts or resumes. Reads config from settings, resolves the character or alignment, sets session bead state, and injects the behavioral profile into the session context.
-
-- **Character mode**: Resolves character bead → loads alignment, class, persona → sets session bead state dimensions → injects alignment + class profiles
-- **Anonymous mode**: Loads alignment (and optional class) directly → sets session bead state → injects profiles
 
 ### PreToolUse: Skill Context
 
@@ -117,6 +92,8 @@ Runs before Write, Edit, or Bash tool calls. If the current alignment is Evil:
 - **Evil + Rogue:** Additional blocks on security-related files (analysis only)
 - **Evil + Cleric:** Blocks CI/CD, Dockerfiles, Terraform, infrastructure files
 
+Safety rules are loaded from the active system's manifest (`systems/<name>/system.yaml`), not hardcoded.
+
 ## Helper Scripts
 
 Utility scripts used by hooks and skills:
@@ -126,6 +103,7 @@ Utility scripts used by hooks and skills:
 | `ensure-session.sh` | Idempotently creates/returns the NPC session bead |
 | `resolve-character.sh` | Resolves a character name to its bead ID |
 | `resolve-party.sh` | Resolves a party name to its bead ID |
+| `set-session-state.sh` | Sets a state dimension on the session bead |
 
 ## Troubleshooting
 

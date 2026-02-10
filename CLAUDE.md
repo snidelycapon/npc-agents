@@ -36,9 +36,9 @@ Characters are beads of type `task` with label `npc:character`. Each has:
 - **Role**: Label `role:<value>` (e.g., `role:defender`)
 - **Perspective**: Label `<stance-prefix>:<value>` (e.g., `perspective:developer` for default system)
 - **Persona**: Bead description (e.g., "Battle-scarred security architect with 15 years in pentesting")
-- **Convictions**: Up to 3 active priority statements (stored in bead notes as JSON)
-- **Reflexes**: Up to 3 if/then behavioral triggers (stored in bead notes as JSON)
-- **History**: Up to 5 narrative experience entries (stored in bead notes as JSON)
+- **Convictions**: Up to 3 active priority statements (stored in bead notes as JSON; update **replaces** all)
+- **Reflexes**: Up to 3 if/then behavioral triggers (stored in bead notes as JSON; update **replaces** all)
+- **History**: Up to 5 narrative experience entries (stored in bead notes as JSON; update **appends**)
 
 ### Character Commands
 

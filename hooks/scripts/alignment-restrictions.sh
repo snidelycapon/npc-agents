@@ -60,7 +60,7 @@ MANIFEST=$(cat "$MANIFEST_FILE")
 RESTRICTION=""
 RESTRICTION=$(echo "$MANIFEST" | jq -c --arg d "$DISPOSITION" '
   .safety.restricted // [] | map(
-    select(.value == $d or ($d | contains(.tag // "")))
+    select(.value == $d)
   ) | .[0] // empty
 ' 2>/dev/null || echo "")
 

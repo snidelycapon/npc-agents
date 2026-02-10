@@ -616,6 +616,11 @@ cmd_create() {
   ensure_manifest
   is_disposition "$alignment" || die "Invalid $(get_axis_label disposition): $alignment. Valid: $(list_axis_values disposition | tr '\n' ', ')"
 
+  # Check for duplicate name
+  local existing
+  existing=$(resolve_character "$name")
+  [[ -n "$existing" ]] && die "Character '$name' already exists ($existing). Use 'npc update $name' to modify."
+
   # Validate counts
   if [[ ${#convictions[@]} -gt 3 ]]; then
     die "Maximum 3 convictions allowed (got ${#convictions[@]})."
@@ -725,7 +730,8 @@ cmd_update() {
   local char_json_pre pre_labels char_system
   char_json_pre=$(bd show "$char_id" --json 2>/dev/null || echo "[]")
   pre_labels=$(echo "$char_json_pre" | jq -c '.[0].labels // []')
-  char_system=$(echo "$pre_labels" | jq -r 'map(select(startswith("system:"))) | .[0] // "system:alignment-grid"' 2>/dev/null | sed 's/^system://')
+  char_system=$(extract_label "$pre_labels" "system")
+  if [[ -z "$char_system" ]]; then char_system="alignment-grid"; fi
   load_manifest "$char_system"
 
   if [[ -n "$new_alignment" ]]; then
@@ -875,14 +881,32 @@ cmd_list() {
   printf "%-18s %-8s %-15s %-10s %-12s %s\n" "NAME" "PERSP" "ALIGNMENT" "CLASS" "ROLE" "PERSONA"
   printf "%-18s %-8s %-15s %-10s %-12s %s\n" "----" "-----" "---------" "-----" "----" "-------"
 
+  # Load system-aware label prefixes
+  ensure_manifest
+  local disp_prefix domain_prefix stance_prefix
+  disp_prefix=$(get_prefix "disposition")
+  domain_prefix=$(get_prefix "domain")
+  stance_prefix=$(get_prefix "stance")
+
   echo "$chars_json" | jq -c '.[]' | while IFS= read -r char; do
     local title labels alignment class role persona perspective
     title=$(echo "$char" | jq -r '.title')
     labels=$(echo "$char" | jq -c '.labels // []')
-    alignment=$(extract_label "$labels" "alignment")
-    class=$(extract_label "$labels" "class")
+
+    # Re-load manifest if character belongs to a different system
+    local char_sys
+    char_sys=$(extract_label "$labels" "system")
+    if [[ -n "$char_sys" && "$char_sys" != "$ACTIVE_SYSTEM" ]]; then
+      load_manifest "$char_sys"
+      disp_prefix=$(get_prefix "disposition")
+      domain_prefix=$(get_prefix "domain")
+      stance_prefix=$(get_prefix "stance")
+    fi
+
+    alignment=$(extract_label "$labels" "$disp_prefix")
+    class=$(extract_label "$labels" "$domain_prefix")
     role=$(extract_label "$labels" "role")
-    perspective=$(extract_label "$labels" "perspective")
+    perspective=$(extract_label "$labels" "$stance_prefix")
     persona=$(echo "$char" | jq -r '.description // ""' | cut -c1-35)
 
     # Show perspective as short code
@@ -919,11 +943,23 @@ cmd_show() {
   title=$(echo "$char_json" | jq -r '.[0].title // "Unknown"')
   persona=$(echo "$char_json" | jq -r '.[0].description // ""')
   labels=$(echo "$char_json" | jq -c '.[0].labels // []')
-  alignment=$(extract_label "$labels" "alignment")
-  class=$(extract_label "$labels" "class")
-  role=$(extract_label "$labels" "role")
-  perspective=$(extract_label "$labels" "perspective")
   notes_json=$(read_bead_notes "$char_json")
+
+  # Load character's system for correct label prefixes
+  local char_system
+  char_system=$(extract_label "$labels" "system")
+  if [[ -z "$char_system" ]]; then char_system="alignment-grid"; fi
+  load_manifest "$char_system"
+
+  local disp_prefix domain_prefix stance_prefix
+  disp_prefix=$(get_prefix "disposition")
+  domain_prefix=$(get_prefix "domain")
+  stance_prefix=$(get_prefix "stance")
+
+  alignment=$(extract_label "$labels" "$disp_prefix")
+  class=$(extract_label "$labels" "$domain_prefix")
+  role=$(extract_label "$labels" "role")
+  perspective=$(extract_label "$labels" "$stance_prefix")
 
   echo "Character:   $title ($char_id)"
   if [[ -n "$perspective" ]]; then
@@ -1048,8 +1084,10 @@ cmd_set() {
 
   update_settings ".npc.mode = \"$alignment\" | .npc.class = \"${class:-off}\""
 
-  # Output full behavioral context (anonymous mode, default developer perspective)
-  build_character_context "$alignment" "${class:-}" "developer" "" "" "" "{}"
+  # Output full behavioral context (anonymous mode, default to first stance value)
+  local default_stance
+  default_stance=$(list_axis_values stance | head -1)
+  build_character_context "$alignment" "${class:-}" "${default_stance:-}" "" "" "" "{}"
 }
 
 cmd_set_class() {
@@ -1067,7 +1105,9 @@ cmd_set_class() {
   local current_alignment
   current_alignment=$(bd state "$session_id" alignment 2>/dev/null || echo "")
   if is_alignment "$current_alignment"; then
-    build_character_context "$current_alignment" "$class" "developer" "" "" "" "{}"
+    local default_stance
+    default_stance=$(list_axis_values stance | head -1)
+    build_character_context "$current_alignment" "$class" "${default_stance:-}" "" "" "" "{}"
   else
     echo "Set class: $class"
   fi
@@ -1177,15 +1217,33 @@ cmd_party_show() {
   printf "  %-4s %-18s %-6s %-6s %-10s %-12s %s\n" "#" "NAME" "PERSP" "ALIGN" "CLASS" "ROLE" "PERSONA"
   printf "  %-4s %-18s %-6s %-6s %-10s %-12s %s\n" "---" "----" "-----" "-----" "-----" "----" "-------"
 
+  # Load system-aware label prefixes
+  ensure_manifest
+  local disp_prefix domain_prefix stance_prefix
+  disp_prefix=$(get_prefix "disposition")
+  domain_prefix=$(get_prefix "domain")
+  stance_prefix=$(get_prefix "stance")
+
   local i=1
   echo "$children_json" | jq -c '.[]' | while IFS= read -r member; do
     local mtitle malign mclass mrole mpersona mlabels mperspective mpersp_short
     mtitle=$(echo "$member" | jq -r '.title')
     mlabels=$(echo "$member" | jq -c '.labels // []')
-    malign=$(extract_label "$mlabels" "alignment")
-    mclass=$(extract_label "$mlabels" "class")
+
+    # Re-load manifest if member belongs to a different system
+    local msys
+    msys=$(extract_label "$mlabels" "system")
+    if [[ -n "$msys" && "$msys" != "$ACTIVE_SYSTEM" ]]; then
+      load_manifest "$msys"
+      disp_prefix=$(get_prefix "disposition")
+      domain_prefix=$(get_prefix "domain")
+      stance_prefix=$(get_prefix "stance")
+    fi
+
+    malign=$(extract_label "$mlabels" "$disp_prefix")
+    mclass=$(extract_label "$mlabels" "$domain_prefix")
     mrole=$(extract_label "$mlabels" "role")
-    mperspective=$(extract_label "$mlabels" "perspective")
+    mperspective=$(extract_label "$mlabels" "$stance_prefix")
     mpersona=$(echo "$member" | jq -r '.description // ""' | cut -c1-30)
 
     case "${mperspective:-developer}" in
@@ -1688,27 +1746,55 @@ cmd_system_validate() {
     echo "$MANIFEST" | jq -r --arg a "$axis" '.axes[$a].values[]' 2>/dev/null | while read -r val; do
       local profile_file="$axis_dir/$val.md"
       if [[ -f "$profile_file" ]]; then
-        # Check structure
-        local has_principles has_heuristics has_actions
-        has_principles=$(grep -c "^## Principles" "$profile_file" 2>/dev/null || true)
-        has_heuristics=$(grep -c "^## Heuristics" "$profile_file" 2>/dev/null || true)
-        has_actions=$(grep -c "^## Actions" "$profile_file" 2>/dev/null || true)
-
-        if [[ "$has_principles" -gt 0 && "$has_heuristics" -gt 0 && "$has_actions" -gt 0 ]]; then
-          echo "  [OK] $val"
-        else
-          local missing_sections=""
-          if [[ "$has_principles" -eq 0 ]]; then missing_sections="Principles"; fi
-          if [[ "$has_heuristics" -eq 0 ]]; then
-            if [[ -n "$missing_sections" ]]; then missing_sections="$missing_sections, "; fi
-            missing_sections="${missing_sections}Heuristics"
-          fi
-          if [[ "$has_actions" -eq 0 ]]; then
-            if [[ -n "$missing_sections" ]]; then missing_sections="$missing_sections, "; fi
-            missing_sections="${missing_sections}Actions"
-          fi
-          echo "  [WARN] $val — missing sections: $missing_sections"
-        fi
+        # Axis-aware structure check: each axis type has a different profile contract
+        case "$axis" in
+          disposition)
+            local has_principles has_heuristics has_actions
+            has_principles=$(grep -c "^## Principles" "$profile_file" 2>/dev/null || true)
+            has_heuristics=$(grep -c "^## Heuristics" "$profile_file" 2>/dev/null || true)
+            has_actions=$(grep -c "^## Actions" "$profile_file" 2>/dev/null || true)
+            if [[ "$has_principles" -gt 0 && "$has_heuristics" -gt 0 && "$has_actions" -gt 0 ]]; then
+              echo "  [OK] $val"
+            else
+              local missing_sections=""
+              if [[ "$has_principles" -eq 0 ]]; then missing_sections="Principles"; fi
+              if [[ "$has_heuristics" -eq 0 ]]; then
+                if [[ -n "$missing_sections" ]]; then missing_sections="$missing_sections, "; fi
+                missing_sections="${missing_sections}Heuristics"
+              fi
+              if [[ "$has_actions" -eq 0 ]]; then
+                if [[ -n "$missing_sections" ]]; then missing_sections="$missing_sections, "; fi
+                missing_sections="${missing_sections}Actions"
+              fi
+              echo "  [WARN] $val — missing sections: $missing_sections"
+            fi
+            ;;
+          domain)
+            local has_prof has_abilities has_output
+            has_prof=$(grep -c "^## Proficiencies" "$profile_file" 2>/dev/null || true)
+            has_abilities=$(grep -c "^## Abilities" "$profile_file" 2>/dev/null || true)
+            has_output=$(grep -c "^## Output Preferences" "$profile_file" 2>/dev/null || true)
+            if [[ "$has_prof" -gt 0 && "$has_abilities" -gt 0 && "$has_output" -gt 0 ]]; then
+              echo "  [OK] $val"
+            else
+              local missing_sections=""
+              if [[ "$has_prof" -eq 0 ]]; then missing_sections="Proficiencies"; fi
+              if [[ "$has_abilities" -eq 0 ]]; then
+                if [[ -n "$missing_sections" ]]; then missing_sections="$missing_sections, "; fi
+                missing_sections="${missing_sections}Abilities"
+              fi
+              if [[ "$has_output" -eq 0 ]]; then
+                if [[ -n "$missing_sections" ]]; then missing_sections="$missing_sections, "; fi
+                missing_sections="${missing_sections}Output Preferences"
+              fi
+              echo "  [WARN] $val — missing sections: $missing_sections"
+            fi
+            ;;
+          stance)
+            # Stance profiles are minimal preambles — file existence is sufficient
+            echo "  [OK] $val"
+            ;;
+        esac
       else
         echo "  [!!] $val — profile MISSING"
       fi

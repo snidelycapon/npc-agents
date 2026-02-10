@@ -1,7 +1,7 @@
 ---
 name: build
 description: "Interactive builder for systems, characters, and parties. Usage: /build [system|character|party|quick] [args...]"
-argument-hint: "[name alignment class] | [customer|developer for purpose] | system [--from|--extend|--resume name] | party [for purpose] | quick name alignment [class] [--for purpose]"
+argument-hint: "[name alignment class] | [customer|developer for purpose] | system [--from name] | party [for purpose] | quick name alignment [class] [--for purpose]"
 ---
 
 # Build — Interactive Builder
@@ -19,8 +19,6 @@ Parse arguments to determine the build mode:
 **System builder:**
 - `system` → System Builder flow (see below)
 - `system --from <name>` → Clone and Modify flow
-- `system --extend <name>` → Extension flow
-- `system --resume <name>` → Resume WIP build
 
 **Character builder:**
 - `character` or bare `/build` with no recognized keyword → **Character Builder**, Phase 1 (intent)
@@ -896,59 +894,6 @@ When invoked with `--from <source>`:
 9. Proceed through Phases 5-7 (composition check, safety, preview)
 
 This is faster than building from scratch because most profile content already exists.
-
----
-
-## Extension Flow (--extend)
-
-When invoked with `--extend <name>`:
-
-This modifies an existing system in-place by adding new values to an axis.
-
-1. Verify the system exists:
-   ```bash
-   bin/npc system show <name>
-   ```
-2. Ask: "Which axis do you want to extend?" (disposition, domain, or stance)
-3. Show current values on that axis
-4. Elicit new values using Phase 3 technique (contrast-based, with existing values as context)
-5. Generate profiles for new values only (Phase 4 technique)
-6. Composition check: only test new values against existing values
-7. Read the current `system.yaml`, add new values to the axis's values array, write it back
-8. Update the manifest cache:
-   ```bash
-   bin/manifest-cache systems/<name>/system.yaml systems/<name>/.manifest.json
-   ```
-9. Validate:
-   ```bash
-   bin/npc system validate <name>
-   ```
-
-No `.build-progress.json` is needed for extensions — they're small enough for one session.
-
----
-
-## Resume Flow (--resume)
-
-When invoked with `--resume <name>`:
-
-1. Read `systems/<name>/.build-progress.json`
-2. If the file doesn't exist, error: "No build in progress for system '<name>'. Use '/build system' to start."
-3. Display progress:
-   ```
-   ## Build Progress: <name>
-
-   [x] Domain discovery
-   [x] Axis definition
-   [x] Value elicitation (5 dispositions, 5 domains, 3 stances)
-   [>] Profile generation (2/5 dispositions drafted)
-   [ ] Composition check
-   [ ] Safety rules
-   [ ] System preview
-   ```
-4. Jump to the first non-complete phase
-5. If resuming mid-phase (e.g., profile generation with partial progress), use the `data` field to know what's already done
-6. Continue the normal flow from that point
 
 ---
 
