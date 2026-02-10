@@ -13,7 +13,7 @@ CWD=$(echo "$INPUT" | jq -r '.cwd')
 # Navigate to project directory
 cd "$CWD"
 
-# Check if NPC Agents is active — try beads first, then JSON fallback
+# Check if NPC Agents is active via beads session bead
 NPC_ACTIVE="false"
 
 if command -v bd &>/dev/null && [ -d ".beads" ]; then
@@ -24,11 +24,6 @@ if command -v bd &>/dev/null && [ -d ".beads" ]; then
       NPC_ACTIVE="true"
     fi
   fi
-fi
-
-# JSON fallback
-if [ "$NPC_ACTIVE" = "false" ] && [ -f ".npc-state.json" ]; then
-  NPC_ACTIVE="true"
 fi
 
 if [ "$NPC_ACTIVE" = "false" ]; then

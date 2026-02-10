@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # PreToolUse hook (Skill): Inject current NPC state into skill context.
-# Reads from beads session bead first, falls back to .npc-state.json during migration.
+# Reads from beads session bead. Requires bd and .beads/ directory.
 
 set -euo pipefail
 
@@ -9,16 +9,17 @@ CWD=$(echo "$INPUT" | jq -r '.cwd')
 cd "$CWD"
 
 PROJECT_DIR="$CWD"
-BEADS_SOURCE="false"
 
-# --- Try beads session bead first ---
+# Read session state from beads
 SESSION_ID=""
 if command -v bd &>/dev/null && [ -d ".beads" ]; then
   SESSION_ID=$(bd list --label npc:session -t task --limit 1 --json 2>/dev/null | jq -r '.[0].id // empty')
 fi
 
-if [ -n "$SESSION_ID" ]; then
-  BEADS_SOURCE="true"
+if [ -z "$SESSION_ID" ]; then
+  # No session bead — NPC Agents not initialized, allow tool with minimal context
+  CONTEXT="NPC Context: not initialized (no session bead found). Project dir: ${PROJECT_DIR}"
+else
   ALIGNMENT=$(bd state "$SESSION_ID" alignment 2>/dev/null || echo "unknown")
   CLASS=$(bd state "$SESSION_ID" active-class 2>/dev/null || echo "none")
   ACTIVE_PARTY=$(bd state "$SESSION_ID" active-party 2>/dev/null || echo "none")
@@ -38,7 +39,7 @@ if [ -n "$SESSION_ID" ]; then
 - Character role: ${CHAR_ROLE}"
   fi
 
-  # Read NPC settings from settings.json (config source stays here)
+  # Read NPC settings from settings.json
   NPC_SETTINGS="{}"
   if [ -f ".claude/settings.json" ]; then
     NPC_SETTINGS=$(jq '.npc // {}' .claude/settings.json 2>/dev/null || echo '{}')
@@ -46,7 +47,7 @@ if [ -n "$SESSION_ID" ]; then
   MODE=$(echo "$NPC_SETTINGS" | jq -r '.mode // "off"')
   CLASS_MODE=$(echo "$NPC_SETTINGS" | jq -r '.class // "off"')
 
-  CONTEXT="NPC Context (injected by skill-context hook, source: beads):
+  CONTEXT="NPC Context (injected by skill-context hook):
 - Project dir: ${PROJECT_DIR}
 - Session bead: ${SESSION_ID}
 - Alignment mode: ${MODE}
@@ -55,36 +56,6 @@ if [ -n "$SESSION_ID" ]; then
 - Active class: ${CLASS}
 - Active party: ${ACTIVE_PARTY}
 - Active character: ${ACTIVE_CHARACTER}${CHARACTER_INFO}
-- Full NPC settings: ${NPC_SETTINGS}"
-
-else
-  # --- Fallback: read from .npc-state.json ---
-  NPC_STATE="{}"
-  NPC_SETTINGS="{}"
-
-  if [ -f ".npc-state.json" ]; then
-    NPC_STATE=$(cat .npc-state.json)
-  fi
-
-  if [ -f ".claude/settings.json" ]; then
-    NPC_SETTINGS=$(jq '.npc // {}' .claude/settings.json 2>/dev/null || echo '{}')
-  fi
-
-  MODE=$(echo "$NPC_SETTINGS" | jq -r '.mode // "off"')
-  CLASS_MODE=$(echo "$NPC_SETTINGS" | jq -r '.class // "off"')
-  ALIGNMENT=$(echo "$NPC_STATE" | jq -r '.mode // .alignment // "unknown"')
-  CLASS=$(echo "$NPC_STATE" | jq -r '.class // "none"')
-  ACTIVE_PARTY=$(echo "$NPC_STATE" | jq -r '.activeParty // "none"')
-
-  CONTEXT="NPC Context (injected by skill-context hook, source: json-fallback):
-- Project dir: ${PROJECT_DIR}
-- Alignment mode: ${MODE}
-- Active alignment: ${ALIGNMENT}
-- Class mode: ${CLASS_MODE}
-- Active class: ${CLASS}
-- Active party: ${ACTIVE_PARTY}
-- Active character: anonymous
-- Full state: ${NPC_STATE}
 - Full NPC settings: ${NPC_SETTINGS}"
 fi
 

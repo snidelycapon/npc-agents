@@ -13,7 +13,7 @@ CWD=$(echo "$INPUT" | jq -r '.cwd')
 # Navigate to project directory
 cd "$CWD"
 
-# Read alignment — try beads session bead first, then JSON fallback
+# Read alignment from beads session bead
 ALIGNMENT=""
 CLASS=""
 
@@ -23,12 +23,6 @@ if command -v bd &>/dev/null && [ -d ".beads" ]; then
     ALIGNMENT=$(bd state "$SESSION_ID" alignment 2>/dev/null || echo "")
     CLASS=$(bd state "$SESSION_ID" active-class 2>/dev/null || echo "")
   fi
-fi
-
-# JSON fallback
-if [ -z "$ALIGNMENT" ] && [ -f ".npc-state.json" ]; then
-  ALIGNMENT=$(jq -r '.alignment // .mode // empty' .npc-state.json 2>/dev/null || echo "")
-  CLASS=$(jq -r '.class // empty' .npc-state.json 2>/dev/null || echo "")
 fi
 
 if [ -z "$ALIGNMENT" ]; then
