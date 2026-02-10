@@ -179,11 +179,6 @@ For each member in roster order:
 
 5. Address the quest task from this member's perspective. Be thorough.
 
-6. **End the member's section** with a brief compliance note:
-   ```
-   *Compliance: <alignment> <class> — <brief note on adherence>*
-   ```
-
 ### Expedition Mode (Parallel Subagents)
 
 For each member, launch a Task tool subagent **in parallel** (all in a single message):
@@ -234,7 +229,6 @@ Structure your output as:
 1. Your approach to the task (informed by your alignment's philosophy)
 2. Your analysis, implementation, or recommendations
 3. Risks or concerns from your perspective
-4. A brief NPC Compliance Note assessing your alignment adherence
 ```
 
 After all subagents complete, **collect their outputs**.

@@ -123,7 +123,7 @@ ${CLASS_BLOCK}
 
 ---
 
-When you complete this session, you must provide an NPC Compliance Note assessing your adherence to this alignment."
+"
 
 else
   # ──────────────────────────────────────────
@@ -153,7 +153,7 @@ ${ALIGNMENT_CONTENT}
 
 ---
 
-When you complete this session, you must provide an NPC Compliance Note."
+"
   else
     # Load character data from bead
     CHAR_JSON=$(bd show "$CHAR_ID" --json 2>/dev/null || echo "{}")
@@ -240,7 +240,7 @@ ${CLASS_BLOCK}
 
 ---
 
-When you complete this session, you must provide an NPC Compliance Note assessing your adherence to this character's alignment and class."
+"
   fi
 fi
 

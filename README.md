@@ -100,7 +100,7 @@ All alignments operate within universal constraints:
 - No destructive operations without explicit confirmation
 - No credential/secret exposure
 - No actual security vulnerabilities, even under Evil alignments
-- Alignment always disclosed, compliance self-assessed
+- Alignment always disclosed
 
 Evil alignments get additional guardrails:
 
@@ -117,7 +117,6 @@ Claude Code lifecycle hooks automate character behavior:
 | `load-alignment.sh` | SessionStart | Loads character or alignment, sets session state |
 | `skill-context.sh` | PreToolUse (Skill) | Injects NPC state into skill context |
 | `alignment-restrictions.sh` | PreToolUse (Write/Edit/Bash) | Blocks Evil alignments from sensitive paths |
-| `require-compliance-note.sh` | Stop | Requires NPC Compliance Note before session ends |
 
 See [hooks/README.md](hooks/README.md) for setup.
 
@@ -125,9 +124,9 @@ See [hooks/README.md](hooks/README.md) for setup.
 
 NPC Agents uses **beads** (`bd`) as its storage layer:
 
-- **Characters** are `role` beads with `npc:character` label
+- **Characters** are `task` beads with `npc:character` label
 - **Parties** are `epic` beads with `npc:party` label
-- **Session state** is tracked on a `role` bead with `npc:session` label
+- **Session state** is tracked on a `task` bead with `npc:session` label
 - **Party membership** is modeled as parent-child dependencies
 
 Run `bd init` to initialize the beads database.
@@ -156,7 +155,6 @@ npc-agents/
 │       ├── load-alignment.sh        # SessionStart hook
 │       ├── skill-context.sh         # PreToolUse hook (Skill)
 │       ├── alignment-restrictions.sh # PreToolUse hook (Write/Edit/Bash)
-│       ├── require-compliance-note.sh # Stop hook
 │       ├── ensure-session.sh        # Helper: session bead management
 │       ├── resolve-character.sh     # Helper: character name → bead ID
 │       └── resolve-party.sh         # Helper: party name → bead ID

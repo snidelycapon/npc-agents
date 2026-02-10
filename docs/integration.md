@@ -18,14 +18,13 @@ All alignments, classes, and utilities are slash commands:
 
 ### Hooks
 
-Four lifecycle hooks run automatically when configured in `.claude/settings.json`. See [hooks/README.md](../hooks/README.md) for setup.
+Three lifecycle hooks run automatically when configured in `.claude/settings.json`. See [hooks/README.md](../hooks/README.md) for setup.
 
 | Hook | Event | Purpose |
 |---|---|---|
 | `load-alignment.sh` | SessionStart | Loads character or alignment from config |
 | `skill-context.sh` | PreToolUse (Skill) | Injects NPC state into skill context |
 | `alignment-restrictions.sh` | PreToolUse (Write/Edit/Bash) | Blocks Evil from sensitive paths |
-| `require-compliance-note.sh` | Stop | Requires compliance note |
 
 ### Configuration Priority
 
@@ -54,7 +53,7 @@ The alignment and class directives are agent-agnostic markdown — any agent tha
 Without Claude Code, you don't get:
 
 - Slash command skills
-- Lifecycle hooks (auto-load, Evil path blocking, compliance enforcement)
+- Lifecycle hooks (auto-load, Evil path blocking)
 - Named characters with personas
 - Parties and quests
 - Beads-based state tracking

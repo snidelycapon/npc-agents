@@ -9,7 +9,6 @@ Claude Code lifecycle hooks that automate NPC Agents behavior.
 | `load-alignment.sh` | SessionStart | Loads character or alignment from config, sets session bead state |
 | `skill-context.sh` | PreToolUse (Skill) | Injects NPC state into skill context |
 | `alignment-restrictions.sh` | PreToolUse (Write/Edit/Bash) | Blocks Evil alignments from sensitive paths |
-| `require-compliance-note.sh` | Stop | Requires NPC Compliance Note before session ends |
 
 ## Setup
 
@@ -50,17 +49,6 @@ To use hooks in another project, add to that project's `.claude/settings.json`:
           {
             "type": "command",
             "command": "/path/to/npc-agents/hooks/scripts/alignment-restrictions.sh",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/path/to/npc-agents/hooks/scripts/require-compliance-note.sh",
             "timeout": 5
           }
         ]
@@ -118,7 +106,7 @@ Runs when a session starts or resumes. Reads config from settings, resolves the 
 
 ### PreToolUse: Skill Context
 
-Runs before any Skill tool call. Reads current NPC state from the session bead (with JSON fallback during transition) and injects it as `additionalContext` so skills don't need to read state files themselves.
+Runs before any Skill tool call. Reads current NPC state from the session bead and injects it as `additionalContext` so skills don't need to read state files themselves.
 
 ### PreToolUse: Alignment Restrictions
 
@@ -129,10 +117,6 @@ Runs before Write, Edit, or Bash tool calls. If the current alignment is Evil:
 - **Evil + Rogue:** Additional blocks on security-related files (analysis only)
 - **Evil + Cleric:** Blocks CI/CD, Dockerfiles, Terraform, infrastructure files
 
-### Stop: Require Compliance Note
-
-Runs when the agent tries to finish responding. Blocks the session from ending unless the response includes an "NPC Compliance Note" section.
-
 ## Helper Scripts
 
 Utility scripts used by hooks and skills:
@@ -142,13 +126,6 @@ Utility scripts used by hooks and skills:
 | `ensure-session.sh` | Idempotently creates/returns the NPC session bead |
 | `resolve-character.sh` | Resolves a character name to its bead ID |
 | `resolve-party.sh` | Resolves a party name to its bead ID |
-
-## Deprecated Scripts
-
-| Script | Status |
-|---|---|
-| `roll.sh` | Deprecated — rolling removed in favor of characters |
-| `roll-class.sh` | Deprecated — rolling removed in favor of characters |
 
 ## Troubleshooting
 
