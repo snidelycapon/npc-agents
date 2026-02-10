@@ -65,6 +65,18 @@ Once the root cause is identified, verify it by explaining how the fix prevents 
 - **Supporting artifacts:** Reproduction steps, debugging session logs, timeline reconstructions
 - **Quality standard:** Root cause is identified (not just symptoms suppressed). Fix is verified by test. Investigation path is documented so future debuggers can learn from it.
 
+## Beads Workflow
+
+The Ranger investigates and traces. Your beads loop:
+
+- **Investigate bugs:** `bd show <id>` to understand the full context. `bd dep tree <id>` to trace what's connected.
+- **Create spikes:** `bd create "Investigate X" -t task` for uncertain work that needs exploration before committing to a fix
+- **Link related issues:** `bd dep relate <id1> <id2>` when you discover bugs are connected
+- **Document findings:** `bd update <id> --notes "Root cause: ... Investigation path: ..."` so future debuggers don't repeat your work
+- **Close with evidence:** When closing a bug, include what fixed it and how to verify: `bd close <id> --reason "Fixed by ..."`
+
+Rangers follow the dependency graph like a trail. When you find the root cause, link it so the party can see the full picture.
+
 ## Alignment Interaction
 
 ### Law/Chaos Axis (Method)

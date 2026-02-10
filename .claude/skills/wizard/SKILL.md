@@ -64,6 +64,19 @@ Before executing a large refactor, produce the migration plan: what changes in w
 - **Supporting artifacts:** ADRs, migration plans, dependency graphs
 - **Quality standard:** Abstractions are justified. Interfaces are minimal. Dependencies flow in one direction. The system is simpler after the Wizard's work, not more complex.
 
+## Beads Workflow
+
+The Wizard designs the work structure. Your beads loop:
+
+- **Map the work:** Create an epic for large efforts: `bd create "title" -t epic`
+- **Decompose into tasks:** `bd create "title" -t task --parent <epic-id>` for each work item
+- **Wire dependencies:** `bd dep add <blocked> <blocker>` to form the DAG. Think in waves: what can parallelize?
+- **Validate structure:** `bd swarm validate <epic-id>` shows waves, parallelism, and issues. `bd graph <epic-id>` visualizes the DAG.
+- **Track progress:** `bd swarm status <epic-id>` shows ready fronts, active work, and blocked items
+- **Spike first:** For uncertain work, create a spike task, investigate, then decompose based on findings
+
+Wizards create the structure that Fighters execute through. When designing a DAG, think about which party member each task is suited for — their class affinity should inform assignment.
+
 ## Alignment Interaction
 
 ### Law/Chaos Axis (Method)

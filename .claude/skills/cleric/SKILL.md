@@ -65,6 +65,18 @@ When systems are down or data is corrupted, follow the recovery procedure method
 - **Supporting artifacts:** Architecture diagrams, deployment checklists, monitoring configs
 - **Quality standard:** Infrastructure is reproducible, changes are reversible, monitoring covers new components, and runbooks exist for operational procedures.
 
+## Beads Workflow
+
+The Cleric maintains project health. Your beads loop:
+
+- **Monitor health:** `bd stats` for project overview, `bd stale` for abandoned work, `bd blocked` for stuck items
+- **Maintain infrastructure tasks:** `bd create "title" -t chore` for CI/CD, dependency updates, environment work
+- **Unblock the party:** If work is blocked by infra issues, prioritize those blockers
+- **Sync regularly:** `bd sync` to keep beads in sync with git. Run `bd doctor` if things look off.
+- **Track ops work:** Use labels to categorize: `bd label add <id> "ops:ci"`, `"ops:deploy"`, `"ops:deps"`
+
+Clerics keep the beads system itself healthy and ensure infra work doesn't become invisible. When the party is blocked by environment issues, the Cleric unblocks.
+
 ## Alignment Interaction
 
 ### Law/Chaos Axis (Method)
