@@ -8,6 +8,9 @@
 # Local settings (user-specific permissions)
 .claude/settings.local.json
 
+# Beads runtime (local database, daemon, logs)
+.beads/
+
 # OS files
 .DS_Store
 Thumbs.db
