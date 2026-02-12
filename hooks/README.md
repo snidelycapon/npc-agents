@@ -110,7 +110,7 @@ Utility scripts used by hooks and skills:
 **Hook not firing:**
 - Check `~/.claude/settings.json` for `"disableAllHooks": false`
 - Verify scripts are executable: `chmod +x hooks/scripts/*.sh`
-- Check paths use `$CLAUDE_PROJECT_DIR` variable
+- Check paths use `$CLAUDE_PROJECT_DIR` variable (available in hook subprocess context only, not in Bash tool)
 - Run `/hooks` in Claude Code to see active hooks
 
 **Permission denied:**

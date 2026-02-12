@@ -1,5 +1,7 @@
 # System Builder
 
+> **Status:** Design specification. The system builder is implemented as of v3.0.0 via `/build system`. The `--template` flow is deferred pending example systems beyond `alignment-grid`.
+
 Agent-driven interactive flow for creating custom behavioral systems. The counterpart to the [Character Builder](character-builder.md) — where that flow elicits individual characters within an existing system, this flow elicits the *system itself*: the axes, values, profiles, and safety rules that define a behavioral vocabulary.
 
 ## The Problem
@@ -273,7 +275,9 @@ This is the lightest-weight customization path. A team that likes the D&D system
 
 ---
 
-## Template Flow
+## Template Flow (Deferred)
+
+> **Note:** The `--template` flow is designed but not yet implemented. It is deferred until example systems beyond `alignment-grid` exist to serve as templates. Use `--from` (clone and modify) as an alternative.
 
 When invoked with `--template <name>`:
 

@@ -1,5 +1,7 @@
 # Character Builder
 
+> **Status:** Design specification. The character builder and party assembly flows are fully implemented as of v3.0.0 via `/build`.
+
 Agent-driven interactive flows for creating characters, assembling parties, and scaffolding teams. The builder is the conversational layer that sits above the `bin/npc` CLI — it elicits, suggests, and refines, then persists everything through CLI commands.
 
 ## Why a Builder

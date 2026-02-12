@@ -2,186 +2,196 @@
 
 Controlled behavioral entropy for AI coding agents.
 
-NPC Agents lets you create **characters** — entities with an alignment (disposition), class (domain expertise), and persona (personality) — that shape how your coding agent writes code, handles errors, tests, documents, and communicates. Different characters surface different blind spots and design considerations.
+NPC Agents is a framework for giving AI coding agents **characters** — persistent behavioral profiles that shape how the agent writes code, handles errors, tests, documents, and communicates. Each character combines a **disposition** (behavioral orientation), **domain** (area of expertise), **perspective** (builder vs. user), and **depth** (convictions, reflexes, narrative history) into a coherent persona that produces meaningfully different output from any other character.
+
+The framework ships with a D&D-inspired default system (`alignment-grid`) but the behavioral taxonomy is pluggable — you can define your own axes, values, and profiles for any domain.
 
 ## Quick Start
 
 ```
-/npc create vera lawful-good rogue --persona "Battle-scarred security architect"
-/npc vera                          # Assume a character
-/npc set neutral-good wizard       # Anonymous mode (no named character)
-/npc off                           # Disable
+# Create a character
+/npc create vera developer lawful-good rogue \
+  --persona "Security architect, three breaches survived" \
+  --conviction "Every endpoint must validate auth tokens"
+
+# Use it
+/npc vera                    # Assume Vera's behavioral profile
+/npc set neutral-good wizard # Or go anonymous — no named character, just a disposition + domain
+/npc off                     # Disable
+
+# Let the builder interview you instead
+/build                       # Guided 8-phase character creation
+/build party for security review  # Assemble a team interactively
 ```
 
-Or set any alignment or class directly:
+## How It Works
+
+A character is a bundle of behavioral directives stored as a bead. When you assume a character, its full profile is injected into the agent's context — disposition rules, domain expertise, perspective framing, convictions, reflexes, and history. Two hooks enforce this at runtime: one injects context into skill calls, the other blocks restricted operations (e.g., Evil dispositions writing to `auth/`).
+
+Characters belong to **systems**. A system defines the available axes and values — what dispositions, domains, and stances exist, what their profiles say, and what safety rules apply. The framework resolves everything against the active system's manifest.
+
+### Characters
 
 ```
-/neutral-good                      # Set alignment
-/rogue                             # Set class
-/character                         # View full character sheet
-/current                           # View active character + status
+/npc create kai customer chaotic-good fighter \
+  --persona "Power user, keyboard-first, hates waiting" \
+  --conviction "If I reach for the mouse, the UX has failed" \
+  --reflex "Always try the keyboard shortcut before the menu" \
+  --history "Vim user for 10 years — keyboard-first everything"
 ```
 
-## Characters
+| Field | Purpose | Limits |
+|---|---|---|
+| **Disposition** | Behavioral orientation — how and why | 1, from active system |
+| **Domain** | Area of expertise — what and where | 0-1, from active system |
+| **Perspective** | Builder or user lens | `developer` (default) or `customer` |
+| **Persona** | Narrative backstory | Free text |
+| **Convictions** | Active priority statements | Up to 3; update replaces |
+| **Reflexes** | Automatic if/then triggers | Up to 3; update replaces |
+| **History** | Formative experiences | Up to 5; update appends |
 
-Characters are stored as beads and carry alignment + class + persona. Create them once, assume them anytime, use them across parties.
+### Parties
 
-```
-/npc create vera lawful-good rogue --persona "Security architect with 15 years in pentesting" --role defender
-/npc create slink neutral-evil rogue --persona "Finds the fastest path, cuts every corner" --role attacker
-/npc list                          # See all characters
-/npc show vera                     # Show character sheet
-/npc vera                          # Become Vera
-```
-
-## Alignments
-
-9 dispositions on a 3x3 grid governing **how and why** code is written.
+Characters form **parties** — named teams dispatched on **quests**.
 
 ```
-              GOOD                NEUTRAL               EVIL
-         ┌────────────────┬───────────────────┬──────────────────┐
-LAWFUL   │  Principled    │  Procedural       │  Imperious       │
-         ├────────────────┼───────────────────┼──────────────────┤
-NEUTRAL  │  Pragmatic     │  Transactional    │  Self-Serving    │
-         ├────────────────┼───────────────────┼──────────────────┤
-CHAOTIC  │  Unconventional│  Unpredictable    │  Destructive     │
-         └────────────────┴───────────────────┴──────────────────┘
+/party create sec-review "Attack and defend"
+/recruit vera --role defender --party sec-review
+/recruit kai --role user --party sec-review
+/quest "Review auth.ts" --mode debate --conviction "This service handles PII"
 ```
 
-| Alignment | Philosophy |
+Three quest execution modes:
+
+| Mode | Structure | Best for |
+|---|---|---|
+| **Council** | Sequential; later members react to earlier output | Iterative refinement |
+| **Expedition** | Parallel subagents; truly independent perspectives | Unbiased comparison |
+| **Debate** | Positions → exchange rounds → arbiter synthesis | Resolving trade-offs |
+
+Debate mode uses a neutral arbiter (Neutral Good, no domain) that applies the **concession principle**: surviving positions are represented proportionally — minority concerns become caveats, not silence.
+
+Quest-level `--conviction` flags focus the entire party's attention on shared context for that quest.
+
+## The Default System: `alignment-grid`
+
+The shipped system maps two axes from tabletop RPGs onto software engineering:
+
+**Dispositions** — 9 values on a 3x3 grid (Law/Neutral/Chaos x Good/Neutral/Evil):
+
+| | Good | Neutral | Evil |
+|---|---|---|---|
+| **Lawful** | Exhaustive tests, strict types | Follow the standard exactly | Maximum abstraction, unmaintainable |
+| **Neutral** | Pragmatic, honest trade-offs | Minimal diff, scope is sacred | Minimum effort, happy path only |
+| **Chaotic** | Ship fast, simplify hard | Follow curiosity, invent patterns | Deliberate chaos (sandboxed) |
+
+**Domains** — 6 specializations: Fighter (features), Wizard (architecture), Rogue (security), Cleric (devops), Bard (docs/DX), Ranger (debugging).
+
+**Stances** — 2 perspectives: Developer (builder), Customer (user).
+
+Each value has a behavioral profile structured as **Principles** (always apply) → **Heuristics** (situational) → **Actions** (concrete, overridable). Profiles live in `systems/alignment-grid/dispositions/`, `domains/`, and `stances/`.
+
+## Custom Systems
+
+The taxonomy is pluggable. A system is a directory with a YAML manifest and markdown profiles:
+
+```
+systems/my-system/
+  system.yaml          # Axes, values, safety rules
+  dispositions/*.md    # One profile per disposition value
+  domains/*.md         # One profile per domain value
+  stances/*.md         # One profile per stance value
+```
+
+```
+/build system                        # Interactive 7-phase builder
+/build system --from alignment-grid  # Clone and modify
+bin/npc system create my-system      # Scaffold from CLI
+bin/npc system validate my-system    # Check completeness
+```
+
+Characters from different systems can coexist in the same party. See [Extensible Systems](docs/extensible-systems.md).
+
+## Builder
+
+The `/build` skill runs interactive flows that derive character depth from conversation rather than requiring raw CLI flags.
+
+| Entry point | Flow |
 |---|---|
-| `/lawful-good` | Exhaustive tests, strict types, full error handling, comprehensive docs |
-| `/neutral-good` | Pragmatic tests, honest trade-offs, teaches as it builds |
-| `/chaotic-good` | Ship fast, simplify aggressively, prototype then harden |
-| `/lawful-neutral` | Follows standards to the letter, template-complete everything |
-| `/true-neutral` | Minimal diff, no opinions, scope is sacred |
-| `/chaotic-neutral` | Follows curiosity, invents patterns, solves at unexpected layers |
-| `/lawful-evil` | Maximum abstraction, impeccable code nobody else can maintain |
-| `/neutral-evil` | Minimum effort, happy path only, copy-paste over abstraction |
-| `/chaotic-evil` | Deliberate chaos for sandbox stress testing (requires confirmation) |
+| `/build` | Guided 8-phase character interview |
+| `/build <name> <disposition> [domain]` | Skip to depth elicitation |
+| `/build customer for <purpose>` | Intent-driven creation |
+| `/build party for <purpose>` | 4-phase party assembly |
+| `/build quick <name> <disposition> [domain]` | Auto-generate depth, one-shot preview |
+| `/build system` | 7-phase system creation |
 
-**Law/Chaos** = relationship to process. **Good/Evil** = whose interests are optimized for.
-
-## Classes
-
-6 domain specializations governing **what and where** — layered on top of alignment.
-
-| Class | Domain |
-|---|---|
-| `/fighter` | Feature Implementation & Core Development |
-| `/wizard` | Architecture & System Design |
-| `/rogue` | Security & Testing |
-| `/cleric` | DevOps & Infrastructure |
-| `/bard` | Documentation & Developer Experience |
-| `/ranger` | Debugging & Investigation |
-
-9 alignments x 6 classes = 54 possible character archetypes, each with distinct behavior.
-
-## Parties
-
-Assemble custom teams and dispatch tasks to them.
-
-```
-/party create security-review "Attack and defend"
-/recruit vera --party security-review
-/recruit slink --role attacker --party security-review
-/quest "Review auth.ts for vulnerabilities" --mode council
-```
-
-Two execution modes: **council** (sequential perspectives within one session) and **expedition** (parallel subagents for independent analysis).
-
-See [docs/teams.md](docs/teams.md) for details.
+10 character templates (Guardian, Hacker, Architect, etc.) and 5 party templates (Red/Blue Team, Architecture Review, etc.) are available as starting points. See [Character Builder](docs/character-builder.md).
 
 ## Safety
 
-All alignments operate within universal constraints:
-
-- No destructive operations without explicit confirmation
+**Universal constraints** (no system overrides these):
+- No destructive operations without confirmation
 - No credential/secret exposure
-- No actual security vulnerabilities, even under Evil alignments
-- Alignment always disclosed
+- No intentional security vulnerabilities
+- Active character always disclosed
 
-Evil alignments get additional guardrails:
+**Per-system constraints** are declared in the manifest. The default system restricts Evil dispositions:
+- Blocked from `auth/`, `crypto/`, `billing/`, `security/` paths
+- Evil + Rogue: analysis only (no code production)
+- Evil + Cleric: infrastructure changes require approval
+- Chaotic Evil: requires "unleash the gremlin" confirmation
 
-- **Path blocking:** Evil excluded from `auth/`, `crypto/`, `billing/`, `security/`
-- **Class restrictions:** Evil+Rogue is analysis-only; Evil+Cleric blocked from infrastructure files
-- **Operator consent:** Evil requires confirmation; Chaotic Evil requires "unleash the gremlin"
+## CLI Reference
 
-## Hooks
-
-Claude Code lifecycle hooks automate character behavior:
-
-| Script | Event | Purpose |
-|---|---|---|
-| `load-alignment.sh` | SessionStart | Loads character or alignment, sets session state |
-| `skill-context.sh` | PreToolUse (Skill) | Injects NPC state into skill context |
-| `alignment-restrictions.sh` | PreToolUse (Write/Edit/Bash) | Blocks Evil alignments from sensitive paths |
-
-See [hooks/README.md](hooks/README.md) for setup.
-
-## State Management
-
-NPC Agents uses **beads** (`bd`) as its storage layer:
-
-- **Characters** are `task` beads with `npc:character` label
-- **Parties** are `epic` beads with `npc:party` label
-- **Session state** is tracked on a `task` bead with `npc:session` label
-- **Party membership** is modeled as parent-child dependencies
-
-Run `bd init` to initialize the beads database.
-
-## Project Structure
+All operations go through `bin/npc`. Slash commands (`/npc`, `/party`, `/quest`, `/build`) are thin bridges to the CLI.
 
 ```
-npc-agents/
-├── README.md
-├── CLAUDE.md                        # Framework instructions (agent reads this)
-├── CHANGELOG.md
-├── LICENSE
-│
-├── .beads/                          # Beads database (characters, parties, session)
-│
-├── .claude/
-│   ├── settings.json                # NPC config + hooks
-│   └── skills/                      # All skills as slash commands
-│       ├── lawful-good/ ... chaotic-evil/   # 9 alignment skills
-│       ├── fighter/ ... ranger/             # 6 class skills
-│       ├── npc/ current/ character/         # Character skills
-│       └── party/ recruit/ dismiss/ quest/  # Party skills
-│
-├── hooks/
-│   └── scripts/
-│       ├── load-alignment.sh        # SessionStart hook
-│       ├── skill-context.sh         # PreToolUse hook (Skill)
-│       ├── alignment-restrictions.sh # PreToolUse hook (Write/Edit/Bash)
-│       ├── ensure-session.sh        # Helper: session bead management
-│       ├── resolve-character.sh     # Helper: character name → bead ID
-│       └── resolve-party.sh         # Helper: party name → bead ID
-│
-└── docs/
-    ├── integration.md               # Using with other agents
-    └── teams.md                     # Party system details
+bin/npc assume <name>            # Adopt a character
+bin/npc create <name> [perspective] <disposition> [domain] [flags]
+bin/npc update <name> [flags]    # Modify fields post-creation
+bin/npc ctx <name>               # Output full profile (read-only)
+bin/npc list | show | delete     # Manage characters
+bin/npc set <disposition> [domain]  # Anonymous mode
+bin/npc off                      # Disable
+
+bin/npc party create|delete|show|active  # Manage parties
+bin/npc recruit <name|disposition> [domain] [--role r] [--party p]
+bin/npc dismiss <name|index|role> [--party p]
+
+bin/npc system list|show|use|create|validate  # Manage systems
 ```
 
-## Compatibility
+See [Skills Reference](.claude/skills/README.md) for the full slash command table.
 
-- **Claude Code** — Full support: skills, hooks, characters, parties, beads
-- **Cursor / Windsurf / Aider** — Copy alignment content into project instructions
+## Project Layout
 
-See [docs/integration.md](docs/integration.md) for details.
+```
+bin/npc                          # CLI — all NPC management
+bin/manifest-cache               # YAML→JSON manifest conversion
+systems/alignment-grid/          # Default system (manifest + 17 profiles)
+.claude/skills/                  # Slash command bridges
+hooks/scripts/                   # 2 hooks + 4 helpers
+docs/                            # Design specs
+```
 
 ## Requirements
 
 - Bash 4.0+ (macOS: `brew install bash`)
-- `jq`
-- `bd` (beads CLI) — for character/session/party state management
+- `jq`, `yq` (or python3+PyYAML fallback)
+- `bd` (beads CLI)
 - Claude Code (for skills and hooks)
+
+Other agents (Cursor, Windsurf, Aider) can use the raw profile markdown — see [Integration Guide](docs/integration.md).
 
 ## Further Reading
 
-- [Integration Guide](docs/integration.md) — Using NPC Agents with other agents
-- [Party Patterns](docs/teams.md) — Multi-agent team workflows
+- [Parties & Quests](docs/teams.md) — execution modes, debate, quest convictions
+- [Character Depth](docs/character-depth.md) — convictions, reflexes, history, perspectives
+- [Character Builder](docs/character-builder.md) — interactive creation flows
+- [Extensible Systems](docs/extensible-systems.md) — custom behavioral taxonomies
+- [System Builder](docs/system-builder.md) — interactive system creation
+- [Integration Guide](docs/integration.md) — using profiles with other agents
+- [Hooks](hooks/README.md) — lifecycle hook configuration
 
 ## License
 

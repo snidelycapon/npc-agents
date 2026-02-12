@@ -2,6 +2,42 @@
 
 All notable changes to NPC Agents will be documented in this file.
 
+## [3.0.0] - 2026-02-10
+
+### Added
+
+- **Extensible behavioral systems**: Pluggable `systems/<name>/` directories with YAML manifests defining custom axes, values, and safety rules
+- **System management CLI**: `npc system list/show/use/create/validate` commands
+- **`bin/manifest-cache`**: YAML-to-JSON manifest conversion utility (yq primary, python3 fallback)
+- **Default system** (`alignment-grid`): Profiles migrated to `systems/alignment-grid/dispositions/`, `domains/`, `stances/`
+- **Character depth**: Perspectives (developer/customer), convictions (3 active priorities), reflexes (3 if/then triggers), history (5 narrative entries)
+- **`bin/npc` unified CLI**: Single bash script handling all NPC management commands
+- **`npc update`**: Update character fields post-creation (perspective, alignment, class, convictions, reflexes, history, persona, role)
+- **`npc ctx`**: Read-only command outputting full behavioral context without state change
+- **Interactive builder** (`/build`): 8-phase character builder, 4-phase party assembly, 7-phase system builder, quick mode
+- **10 character templates**: Guardian, Hacker, Architect, Pragmatist, Skeptic, Power User, New Adopter, Administrator, Evaluator, Reluctant User
+- **5 party templates**: Red/Blue Team, Architecture Review, Feature Planning, Product Feedback, Devil's Advocate
+- **Debate mode** (`--mode debate`): Three-phase structured exchange — positions, exchange rounds (configurable 1-4), arbiter synthesis with concession principle
+- **Quest-level convictions** (`--conviction "..."`): Shared focus applied to all party members per quest, works with all modes
+- **Arbiter**: Ephemeral Neutral Good agent that synthesizes debate output proportionally representing surviving positions
+- **Oracle** (`/oracle`): Multi-perspective investigation with 5-member randomized team (1 Coordinator + 4 Seers)
+
+### Changed
+
+- **Profiles restructured** into three-tier hierarchy: Principles (always apply), Heuristics (context-dependent), Actions (overridable)
+- **Profile location** moved from `.claude/skills/<value>/SKILL.md` to `systems/<name>/dispositions/<value>.md`, `domains/<value>.md`, `stances/<value>.md`
+- **Context injection** is now on-demand via `npc assume`/`npc ctx`/`npc set` (no more SessionStart hook)
+- **Safety rules** loaded dynamically from system manifest (`systems/<name>/system.yaml`) instead of hardcoded in hooks
+- **Skills** are now thin CLI bridges delegating to `bin/npc` via `$ARGUMENTS`
+
+### Removed
+
+- **`load-alignment.sh` SessionStart hook** — replaced by on-demand CLI context injection
+- **Alignment skill directories** (`.claude/skills/lawful-good/` through `.claude/skills/chaotic-evil/`)
+- **Class skill directories** (`.claude/skills/fighter/` through `.claude/skills/ranger/`)
+- **Compliance note system** (`require-compliance-note.sh`)
+- **Rolling system** (`roll.sh`, `roll-class.sh`, `/roll` skill)
+
 ## [2.2.0] - 2026-02-09
 
 ### Added

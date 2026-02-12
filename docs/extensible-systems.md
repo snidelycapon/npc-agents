@@ -1,20 +1,22 @@
 # Extensible Systems
 
+> **Status:** Design specification. The extensible systems framework is fully implemented as of v3.0.0. The default `alignment-grid` system ships with complete profiles. Custom systems can be created via `bin/npc system create` or `/build system`.
+
 An abstraction layer that makes NPC Agents' behavioral taxonomy pluggable — so the D&D-inspired alignment grid and class archetypes become one useful default among many possible behavioral systems.
 
 ## The Abstraction
 
-The framework currently uses three hardcoded concepts:
+The framework uses three abstract axes:
 
-| Current Term | What It Really Is | Abstract Term |
+| Axis | What It Governs | Default System Label |
 |---|---|---|
-| Alignment | A behavioral orientation — *how* and *why* the agent approaches work | **Disposition** |
-| Class | A domain of expertise — *what* and *where* the agent focuses | **Domain** |
-| Perspective | A viewpoint or role identity — *from where* the agent sees the work | **Stance** |
+| **Disposition** | Behavioral orientation — *how* and *why* the agent approaches work | Alignment |
+| **Domain** | Area of expertise — *what* and *where* the agent focuses | Class |
+| **Stance** | Viewpoint or role identity — *from where* the agent sees the work | Perspective |
 
 These three dimensions compose to produce a character's behavioral profile. The D&D mapping (Lawful Good + Rogue + Developer) is one valid system for populating these dimensions. It's not the only one.
 
-A **system** is a named bundle that defines the available values on each axis, provides behavioral profiles (SKILL.md files) for each value, and optionally declares safety constraints. The framework resolves characters against their system's vocabulary, loads the right profiles, and injects them through the same hooks and context machinery.
+A **system** is a named bundle that defines the available values on each axis, provides behavioral profiles for each value, and optionally declares safety constraints. The framework resolves characters against their system's vocabulary, loads the right profiles, and injects them through the same hooks and context machinery.
 
 ---
 
@@ -354,56 +356,39 @@ axes:
 
 ### Discovery
 
-The framework currently discovers dispositions and domains through hardcoded lists:
+The `bin/npc` CLI discovers dispositions, domains, and stances dynamically from the active system's manifest. The manifest is cached as JSON (via `bin/manifest-cache`) for fast jq-based lookups:
 
 ```bash
-# load-alignment.sh, line 35-36
-ALIGNMENTS="lawful-good neutral-good chaotic-good ..."
-CLASSES="fighter wizard rogue cleric bard ranger"
+# bin/npc loads the manifest cache and validates values dynamically
+MANIFEST="systems/${SYSTEM}/.manifest.json"
+# is_disposition(), is_domain(), is_stance() check values against the manifest
 ```
 
-With extensible systems, discovery becomes dynamic. The hook reads the active system's manifest and derives the available values:
+Profile resolution uses the system directory:
 
 ```bash
-# Read active system manifest
-SYSTEM_DIR=$(resolve_active_system)
-DISPOSITIONS=$(yq '.axes.disposition.values[]' "$SYSTEM_DIR/system.yaml")
-DOMAINS=$(yq '.axes.domain.values[]' "$SYSTEM_DIR/system.yaml")
-STANCES=$(yq '.axes.stance.values[]' "$SYSTEM_DIR/system.yaml")
-```
-
-Profile resolution changes from:
-
-```bash
-SKILL_FILE=".claude/skills/${ALIGNMENT}/SKILL.md"
-```
-
-To:
-
-```bash
-PROFILE_FILE="$SYSTEM_DIR/dispositions/${DISPOSITION}.md"
+PROFILE_FILE="systems/${SYSTEM}/dispositions/${DISPOSITION}.md"
 ```
 
 ### Configuration
 
-The settings need to know which system is active:
+The active system is set in `.claude/settings.json`:
 
 ```json
 {
   "npc": {
     "system": "alignment-grid",
     "mode": "lawful-good",
-    "class": "rogue",
-    "safety": { ... }
+    "class": "rogue"
   }
 }
 ```
 
-For backward compatibility, if `system` is absent, the framework assumes the default system (the current D&D-inspired one). This means existing installations continue to work without changes.
+If `system` is absent, the framework assumes `alignment-grid`.
 
 ### CLI
 
-The `bin/npc` CLI needs to be system-aware:
+The `bin/npc` CLI is system-aware:
 
 ```
 # System management
@@ -421,7 +406,7 @@ The CLI validates disposition/domain/stance values against the active system's m
 
 ### Character Beads
 
-Character beads currently store `alignment:lawful-good` and `class:rogue` as labels. With extensible systems, the labels become:
+Character beads use system-aware label prefixes from the manifest. In the default system (`alignment-grid`), labels look like:
 
 ```
 disposition:lawful-good
@@ -436,29 +421,21 @@ The `system` label records which system the character was created under, so the 
 
 ### Slash Commands
 
-In the default system, alignment slash commands (`/lawful-good`, `/rogue`, etc.) continue to work as before — they're just values from the active system.
-
-For other systems, values are invoked through the CLI:
+All values are invoked through the `/npc set` command:
 
 ```
-/npc set user-first product-manager    # Set disposition + domain
-/npc set zero-trust appsec             # Different system
+/npc set lawful-good rogue             # Default system
+/npc set user-first product-manager    # Custom system
+/npc set zero-trust appsec             # Another custom system
 ```
-
-Systems can optionally register their values as standalone slash commands by including SKILL.md files in the standard `.claude/skills/` location. This is a convenience for frequently-used systems, not a requirement.
 
 ### Safety
 
 Safety constraints are declared per-system in the manifest rather than hardcoded in hooks. The restriction hook reads the active system's safety rules and enforces them:
 
-```bash
-# alignment-restrictions.sh (generalized)
-SYSTEM_DIR=$(resolve_active_system)
-SAFETY=$(yq '.safety' "$SYSTEM_DIR/system.yaml")
-# Check if current disposition has restrictions
-# Check cross-constraints for disposition × domain
-# Enforce blockedPaths, requireConfirmation, analysisOnly, etc.
-```
+The `alignment-restrictions.sh` hook reads the active system's cached manifest and checks:
+- Whether the current disposition has `restricted` entries (blocked paths, confirmation requirements)
+- Whether the current disposition × domain combination triggers a `crossConstraint` (analysis-only, require approval)
 
 This means each system defines its own safety model. The default system has Evil alignment restrictions. A security-ops system might restrict the adversarial+offensive combination. An editorial system might have no restrictions at all.
 
@@ -470,7 +447,7 @@ This means each system defines its own safety model. The default system has Evil
 
 ### Can you mix axes from different systems?
 
-**Short answer: not in v1.** A character belongs to one system. Its disposition, domain, and stance must all be valid values in that system.
+**No.** A character belongs to one system. Its disposition, domain, and stance must all be valid values in that system.
 
 **Why:** Cross-system composition creates ambiguity. What does "Lawful Good + Product Manager" mean? The behavioral profiles were written to compose within their system — an alignment-grid disposition assumes it's paired with an alignment-grid domain. Mixing breaks the assumptions each profile makes about its compositional context.
 
@@ -483,7 +460,7 @@ compatibility:
     - alignment-grid  # Allow D&D alignments as dispositions with our domains
 ```
 
-This is a future design decision, not a v1 feature.
+This is a potential future extension.
 
 ### Can you use multiple systems in one party?
 
@@ -549,51 +526,25 @@ The extended system inherits all profiles from the parent and adds its own. This
 
 ### Via the Builder
 
-The `/build` skill (see [Character Builder](character-builder.md)) can be extended to help users create systems interactively:
+The `/build system` skill provides an interactive 7-phase flow for creating systems conversationally. See [System Builder](system-builder.md) for the full specification.
 
 ```
-/build system
-
-> "What domain will this system serve? (software engineering, security,
->  product management, editorial, etc.)"
->
-> "What behavioral dimensions matter in this domain? For software, we use
->  'how you approach quality' and 'what you focus on.' What are the
->  equivalent axes for your domain?"
->
-> ...guided flow to define dispositions, domains, stances, and their profiles...
+/build system                          # From scratch
+/build system --from alignment-grid    # Clone and modify
+/build system --extend alignment-grid  # Add values to existing
 ```
-
-This is a future capability that depends on the builder and the extensibility model both being in place.
 
 ---
 
-## Migration Path
+## Implementation Status
 
-### Phase 1: Abstract the internals
+All migration phases are complete as of v3.0.0:
 
-Refactor hooks, CLI, and settings to use the abstract terms internally (disposition, domain, stance) while maintaining backward compatibility with current terms (alignment, class). The default system's profiles remain in `.claude/skills/` — the system directory is optional.
-
-- Hooks read from either `systems/<name>/` or `.claude/skills/` (fallback)
-- CLI accepts both `alignment` and `disposition` terminology
-- Settings support both `npc.class` and `npc.domain`
-- No visible change to existing users
-
-### Phase 2: System manifest and discovery
-
-Introduce `system.yaml` and the `systems/` directory structure. The default system is codified as a manifest that points to the existing `.claude/skills/` profiles. Safety constraints move from hardcoded hook logic to the manifest.
-
-- `npc system` commands become available
-- Custom systems can be created and activated
-- Default system behavior is unchanged
-
-### Phase 3: First alternative system
-
-Ship one well-crafted alternative system (likely product-dev or security-ops) to validate the extensibility model and provide a template for custom systems.
-
-### Phase 4: Builder support
-
-Extend `/build` to support system creation and guide users through defining custom axes, values, and profiles.
+- **Abstraction**: The CLI and hooks use abstract terms internally (disposition, domain, stance) while maintaining backward compatibility with `alignment`/`class` terminology
+- **System manifest**: `system.yaml` and the `systems/` directory structure are fully operational; safety constraints are manifest-driven
+- **System management**: `npc system list/show/use/create/validate` commands are available
+- **Builder support**: `/build system` provides interactive 7-phase system creation
+- **Alternative systems**: The framework is ready for custom systems; no alternative systems ship yet (the `alignment-grid` default is the only bundled system)
 
 ---
 

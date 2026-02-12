@@ -1,44 +1,12 @@
 # Character Depth
 
-Deeper character modeling for richer, more situated agent behavior.
+> **Status:** Design specification. All features described here are fully implemented as of v3.0.0. See [CHANGELOG](../CHANGELOG.md) for release details.
 
-## Motivation
-
-The current framework models characters along two axes: **alignment** (disposition) and **class** (domain). This produces 54 archetypes — distinct and useful, but static. Every Lawful Good Rogue behaves identically regardless of project, task, or accumulated experience. The character's persona string adds flavor but doesn't structurally change what the agent notices, prioritizes, or pushes back on.
-
-This spec introduces four enhancements that make characters more situated and useful:
-
-1. **Convictions** — active priorities that focus the agent's attention on specific concerns
-2. **Reflexes** — automatic behavioral triggers that fire before deliberation
-3. **History** — narrative experience that grounds opinions in lived context
-4. **Perspectives** — a top-level identity axis (developer vs. customer) that reframes alignment and class for product-oriented work
-
-It also introduces two framework-level changes that build on deeper characters:
-
-5. **Debate mode** — a structured adversarial quest variant with phases and synthesis
-6. **Principles hierarchy** — restructuring alignment profiles into tiered behavioral encoding
+Design specification for the four character depth fields (convictions, reflexes, history, perspectives), debate mode, and the principles hierarchy used in behavioral profiles.
 
 ---
 
-## Characters Today
-
-A character currently carries:
-
-| Field | Source | Purpose |
-|---|---|---|
-| Name | Bead title | Identity |
-| Alignment | `alignment:*` label | Behavioral disposition (how/why) |
-| Class | `class:*` label | Domain expertise (what/where) |
-| Role | `role:*` label | Functional label in quest output |
-| Persona | Bead description | 1-3 sentence backstory |
-
-The alignment SKILL.md provides the full behavioral profile: prime directives, code production rules, decision heuristics, communication protocol, and boundaries. Class SKILL.md provides domain focus and task affinities. Persona adds narrative color.
-
-This works well for single-axis tasks ("review this code from a security perspective"). It's less effective when agents need to reason about a *specific* project context, advocate for *particular* user needs, or engage in structured disagreement.
-
----
-
-## 1. Convictions
+## Convictions
 
 **What they are:** 3 active statements that declare what the character cares about *right now*, in *this context*. They function as weighted attention directives — the agent actively looks for, flags, and prioritizes concerns related to its convictions.
 
@@ -50,8 +18,8 @@ This works well for single-axis tasks ("review this code from a security perspec
 
 - **Count:** Exactly 3 per character. Enough to create a triangle of attention, few enough to stay focused.
 - **Format:** Free-form statements. Declarative, opinionated, specific. Not generic platitudes.
-- **Storage:** Array field on the character bead (notes or structured metadata, depending on beads capabilities).
-- **Injection:** Included in the character context injected by `skill-context.sh`, placed immediately after alignment and class identification.
+- **Storage:** JSON array in the bead's `notes` field.
+- **Injection:** Included in character context after alignment and class identification.
 - **Mutability:** Convictions can be updated between sessions or per-quest. Characters should evolve their focus as they learn about a codebase or project.
 
 ### CLI Integration
@@ -116,7 +84,7 @@ convictions:
 
 ---
 
-## 2. Reflexes
+## Reflexes
 
 **What they are:** 3 automatic if/then rules that fire *before* the agent's main reasoning. When the agent encounters a trigger condition, the reflex dictates an immediate action without deliberation.
 
@@ -171,7 +139,7 @@ reflexes:
 
 ---
 
-## 3. History
+## History
 
 **What it is:** A sequence of free-form experience descriptions that explain *how* the character developed its current disposition. History is purely narrative context — the LLM interprets it naturally to produce grounded, specific opinions rather than generic alignment-shaped responses.
 
@@ -219,11 +187,11 @@ The specificity comes from the LLM having *a reason* for the advice, not just an
 
 ---
 
-## 4. Perspectives
+## Perspectives
 
 **What they are:** A top-level identity axis that determines whether a character approaches work as a **builder** (developer) or a **user** (customer/stakeholder). Perspective reframes how alignment and class manifest without changing the underlying behavioral profiles.
 
-**Why this matters:** The framework currently assumes all characters are developers producing or reviewing code. But some of the most valuable party compositions pit developer agents against customer agents — the developers argue technical feasibility while the customers argue user experience. This surfaces objections that normally only appear *after* shipping.
+The most valuable use is mixing perspectives in a party — developers argue technical feasibility while customers argue user experience, surfacing objections that normally only appear after shipping.
 
 ### Specification
 
@@ -236,7 +204,7 @@ The specificity comes from the LLM having *a reason* for the advice, not just an
 
 The alignment axes shift meaning based on perspective:
 
-**Developer perspective** (current behavior, unchanged):
+**Developer perspective** (default):
 - **Law/Chaos** → relationship to engineering process
 - **Good/Evil** → whose long-term interests are optimized for
 
@@ -325,21 +293,13 @@ the perspective of someone who will ENCOUNTER this in the wild. What's your firs
 reaction? Where do you get confused? What would make you give up?
 ```
 
-This preamble layers on top of the standard alignment and class SKILL.md content. The LLM reinterprets the behavioral profile through the user lens naturally.
+This preamble layers on top of the standard disposition and domain profile content. The LLM reinterprets the behavioral profile through the user lens naturally.
 
 ---
 
-## 5. Debate Mode
+## Debate Mode
 
-A new quest execution mode for structured adversarial exchange. Where council mode is **additive** (each voice layers on) and expedition mode is **independent** (parallel, unbiased), debate mode is **dialectic** — positions clash and merge through structured exchange.
-
-### When to Use Each Mode
-
-| Mode | Structure | Best For |
-|---|---|---|
-| Council | Sequential monologue, later reacts to earlier | Multi-angle analysis, iterative refinement |
-| Expedition | Parallel, independent perspectives | Unbiased comparison, diverse investigation |
-| **Debate** | Structured exchange with positions, rebuttals, synthesis | Resolving disagreements, evaluating trade-offs, feature planning |
+A quest execution mode for structured adversarial exchange. Where council mode is **additive** (each voice layers on) and expedition mode is **independent** (parallel, unbiased), debate mode is **dialectic** — positions clash and merge through structured exchange.
 
 ### The Three Phases
 
@@ -384,61 +344,6 @@ The arbiter:
 /quest "Evaluate the proposed caching architecture" --mode debate
 ```
 
-### Output Format
-
-```
-## Debate: <quest task>
-
-**Party:** <party-name> (<N> debaters + arbiter)
-**Rounds:** <N>
-
----
-
-### Positions
-
-#### <Name> (<Alignment> <Class> · <Perspective>)
-<2-4 sentence position statement>
-
-#### <Name> (<Alignment> <Class> · <Perspective>)
-<2-4 sentence position statement>
-
-...
-
----
-
-### Exchange — Round 1
-
-#### <Name>
-<Response addressing other members' positions by name>
-
-#### <Name>
-<Response addressing other members' positions by name>
-
-...
-
-### Exchange — Round 2
-
-...
-
----
-
-### Synthesis (Arbiter)
-
-#### Recommendation
-<Merged recommendation incorporating all surviving positions proportionally>
-
-#### Surviving Points
-| Member | Position | Outcome |
-|--------|----------|---------|
-| <name> | <core claim> | Adopted / Adopted with modification / Acknowledged as caveat / Considered and set aside |
-
-#### Unresolved Tensions
-<Disagreements the party couldn't settle — flagged for the operator>
-
-#### Concessions Made
-<Specific points where the recommendation incorporates minority positions>
-```
-
 ### Example: Feature Planning Debate
 
 ```
@@ -460,9 +365,9 @@ The arbiter:
 
 ---
 
-## 6. Principles Hierarchy
+## Principles Hierarchy
 
-A restructuring of how alignment behavioral profiles are encoded. Currently, each alignment SKILL.md mixes philosophy, heuristics, and specific action rules at the same level. Separating them into explicit tiers produces better agent behavior — especially in novel situations not covered by specific rules.
+Behavioral profiles are structured into three explicit tiers. This produces better agent behavior in novel situations — when no specific action rule applies, principles still guide behavior.
 
 ### The Three Tiers
 
@@ -490,28 +395,10 @@ Concrete coding conventions and style rules. These are the most prescriptive but
 - Specific: "max 30-line functions," "80% coverage minimum"
 - Overridable: project conventions may supersede these
 
-### How This Changes SKILL.md Files
+### Profile Structure
 
-Current structure (flat):
-```markdown
-## Prime Directives
-1. Correctness above all.
-2. Protect the future.
-3. Fail loudly, fail safely.
+Each disposition and domain profile follows this tiered structure:
 
-## Code Production Rules
-### Style & Formatting
-- Strict adherence to the project's configured linter...
-- Explicit over implicit...
-- Maximum function length: 30 lines...
-### Error Handling
-- Every function that can fail has an explicit error type...
-### Testing Requirements
-- Unit tests for every public function...
-- Coverage threshold: 80% minimum...
-```
-
-Proposed structure (tiered):
 ```markdown
 ## Principles
 > These always apply. They override heuristics and actions when in conflict.
@@ -558,105 +445,21 @@ Proposed structure (tiered):
 - CHANGELOG updated with every change
 ```
 
-### Why This Produces Better Behavior
+### Why Tiers Work
 
-1. **Principles are robust to novelty.** When an agent encounters a situation not covered by any specific action rule, the principles still guide behavior. "Protect the future" tells you what to do even when no specific testing or documentation rule applies.
-
-2. **Heuristics adapt to context.** "When reviewing: prioritize correctness over style" applies across all languages and projects, while specific action rules ("max 30-line functions") may not.
-
-3. **Actions become overridable without losing identity.** A project that uses 50-line function limits instead of 30 can override the action without conflicting with the principle ("protect the future") or the heuristic ("explicit over implicit"). The alignment's *identity* is preserved even when specific conventions change.
-
-4. **Prompt efficiency.** In contexts where only principles matter (quick questions, high-level design discussions), the framework could inject only the principles tier — a few hundred tokens instead of a full behavioral profile. This is a future optimization, not a current requirement.
+- **Principles are robust to novelty.** When no specific action rule applies, "protect the future" still tells you what to do.
+- **Heuristics adapt to context.** "When reviewing: prioritize correctness over style" works across all languages and projects.
+- **Actions are overridable without losing identity.** A project using 50-line function limits instead of 30 can override the action without conflicting with the principle or the heuristic.
 
 ---
 
-## Implementation Considerations
+## Implementation Notes
 
-### Bead Storage
+All features described in this spec are implemented as of v3.0.0:
 
-New character fields need to be stored on character beads. The `bd` CLI supports labels and description fields. Options:
-
-1. **Labels for flags, notes for structured data.** Use labels for perspective (`perspective:customer`). Store convictions, reflexes, and history as structured content in the bead's notes field (JSON or newline-delimited).
-
-2. **All in notes.** Store all new fields as a structured block in the bead notes. The `npc` CLI reads and writes this block.
-
-The right choice depends on what `bd` supports for structured metadata. Either way, the `bin/npc` CLI is the read/write interface — no one touches bead internals directly.
-
-### CLI Surface Additions
-
-The `bin/npc` CLI plan needs these extensions:
-
-```
-# Character creation (extended flags)
-npc create <name> [perspective] <alignment> [class] \
-  [--persona "..."] [--role role] \
-  [--conviction "..."]  # repeatable, up to 3 \
-  [--reflex "..."]      # repeatable, up to 3 \
-  [--history "..."]     # repeatable, up to 5
-
-# Character update (new subcommand)
-npc update <name> \
-  [--conviction "..."]  # replaces all convictions \
-  [--reflex "..."]      # replaces all reflexes \
-  [--history "..."]     # appends to history \
-  [--perspective developer|customer]
-```
-
-Where `[perspective]` is an optional positional: `npc create kai customer chaotic-good fighter`. If omitted, defaults to `developer`. The CLI uses the same disambiguation logic as alignment/class — `customer` and `developer` are recognized as perspective values.
-
-### Hook Changes
-
-**`skill-context.sh`** needs to read the new fields from the character bead and inject them into the context. The injection order:
-
-```
-## Character: <Name>
-Alignment: <alignment> | Class: <class> | Perspective: <perspective>
-Persona: <persona>
-
-## History
-- <entry 1>
-- <entry 2>
-
-## Convictions
-- <conviction 1>
-- <conviction 2>
-- <conviction 3>
-
-## Reflexes
-These fire automatically before your main analysis:
-- <reflex 1>
-- <reflex 2>
-- <reflex 3>
-```
-
-**`load-alignment.sh`** needs to detect perspective and inject the customer framing preamble when `perspective:customer` is present.
-
-### Quest Skill Changes
-
-The quest SKILL.md needs:
-
-1. A new `--mode debate` option in the argument parser
-2. The three-phase execution flow (Positions → Exchange → Synthesis)
-3. Arbiter agent specification (Neutral Good, no class, synthesis-only)
-4. The output format template
-5. Support for `--conviction` flags that apply quest-level convictions to all party members
-
-### Alignment SKILL.md Restructure
-
-Each of the 9 alignment SKILL.md files gets reorganized into the three-tier structure (Principles → Heuristics → Actions). The content is the same — this is a reorganization, not a rewrite. Existing prime directives become principles. Decision heuristics stay as heuristics. Code production rules and boundaries become actions.
-
----
-
-## Rollout Order
-
-These enhancements are independent and can be implemented incrementally:
-
-1. **Principles hierarchy** — Restructure existing SKILL.md files. Zero new infrastructure. Immediate improvement to agent behavior in novel situations.
-
-2. **Convictions + Reflexes** — Add fields to character beads and context injection. Requires `bin/npc` CLI extensions and `skill-context.sh` changes. High value, moderate effort.
-
-3. **History** — Add another field, same integration path as convictions/reflexes. Lower priority since convictions carry most of the situated-behavior value.
-
-4. **Perspectives** — Add perspective label, customer framing preamble, class reframe table. Requires the most new content (customer-perspective prompts) but unlocks cross-perspective parties.
-
-5. **Debate mode** — New quest execution flow. Most complex change. Depends on characters being rich enough to produce interesting disagreements (benefits from 1-4 being in place first).
+- **Storage**: Perspective stored as `perspective:<value>` label on character beads. Convictions, reflexes, and history stored as JSON in the bead's `notes` field (`{"convictions":[...],"reflexes":[...],"history":[...]}`).
+- **CLI**: `bin/npc create` and `bin/npc update` support all depth flags (`--conviction`, `--reflex`, `--history`, `--perspective`). Perspective is also an optional positional: `npc create kai customer chaotic-good fighter`.
+- **Context injection**: `build_character_context()` in `bin/npc` assembles the full profile inline: header, adoption message, stance preamble, history, convictions, reflexes, disposition profile, domain profile. Output by `npc assume`, `npc ctx`, and `npc set`. The `skill-context.sh` hook injects compact context (perspective + convictions) for skill execution.
+- **Profiles**: All 9 disposition and 6 domain profiles restructured into Principles/Heuristics/Actions tiers and relocated to `systems/alignment-grid/dispositions/` and `domains/`.
+- **Debate mode**: Implemented in the quest skill with three-phase flow, configurable `--rounds N`, and Neutral Good arbiter applying the concession principle.
+- **Quest convictions**: `--conviction "..."` flag on quest dispatch, repeatable, works with all execution modes.
