@@ -119,10 +119,10 @@ The `/build` skill runs interactive flows that derive character depth from conve
 | Entry point | Flow |
 |---|---|
 | `/build` | Guided 8-phase character interview |
-| `/build <name> <disposition> [domain]` | Skip to depth elicitation |
+| `/build <name> <alignment> [class]` | Skip to depth elicitation |
 | `/build customer for <purpose>` | Intent-driven creation |
 | `/build party for <purpose>` | 4-phase party assembly |
-| `/build quick <name> <disposition> [domain]` | Auto-generate depth, one-shot preview |
+| `/build quick <name> <alignment> [class]` | Auto-generate depth, one-shot preview |
 | `/build system` | 7-phase system creation |
 
 10 character templates (Guardian, Hacker, Architect, etc.) and 5 party templates (Red/Blue Team, Architecture Review, etc.) are available as starting points. See [Character Builder](docs/character-builder.md).
@@ -147,15 +147,15 @@ All operations go through `bin/npc`. Slash commands (`/npc`, `/party`, `/quest`,
 
 ```
 bin/npc assume <name>            # Adopt a character
-bin/npc create <name> [perspective] <disposition> [domain] [flags]
+bin/npc create <name> [perspective] <alignment> [class] [flags]
 bin/npc update <name> [flags]    # Modify fields post-creation
 bin/npc ctx <name>               # Output full profile (read-only)
 bin/npc list | show | delete     # Manage characters
-bin/npc set <disposition> [domain]  # Anonymous mode
+bin/npc set <alignment> [class]  # Anonymous mode
 bin/npc off                      # Disable
 
 bin/npc party create|delete|show|active  # Manage parties
-bin/npc recruit <name|disposition> [domain] [--role r] [--party p]
+bin/npc recruit <name|alignment> [class] [--role r] [--party p]
 bin/npc dismiss <name|index|role> [--party p]
 
 bin/npc system list|show|use|create|validate  # Manage systems

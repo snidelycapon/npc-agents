@@ -1,7 +1,6 @@
 ---
 name: npc
-description: "NPC Agents — assume characters, create characters, set anonymous alignment, or disable. Usage: /npc [name|create|list|show|delete|set|alignment|off]"
-argument-hint: "[name|create|list|show|delete|set|alignment|off] [...]"
+description: "NPC Agents — assume characters, create characters, set anonymous alignment, or disable. Usage: /npc [name|create|list|show|delete|set|off]"
 ---
 
 # NPC Agents

@@ -1,7 +1,6 @@
 ---
 name: quest
 description: "Dispatch a task to a party. Usage: /quest <task> [--mode council|expedition|debate] [--party name] [--bead id] [--create] [--conviction \"...\"] [--rounds N]"
-argument-hint: "<task description> [--mode council|expedition|debate] [--party name] [--bead id] [--create] [--conviction \"...\"] [--rounds N]"
 disable-model-invocation: true
 ---
 

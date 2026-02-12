@@ -1,7 +1,6 @@
 ---
 name: build
 description: "Interactive builder for systems, characters, and parties. Usage: /build [system|character|party|quick] [args...]"
-argument-hint: "[name alignment class] | [customer|developer for purpose] | system [--from name] | party [for purpose] | quick name alignment [class] [--for purpose]"
 ---
 
 # Build — Interactive Builder
@@ -274,7 +273,7 @@ Ask: **"Create this character? [Yes / Adjust / Start over]"**
 On **Yes**, construct and run the CLI command:
 
 ```bash
-bin/npc create <name> <perspective> <alignment> <class> \
+bin/npc create <name> [perspective] <alignment> [class] \
   --persona "<persona>" \
   --role <role> \
   --history "<entry 1>" \

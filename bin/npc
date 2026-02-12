@@ -1454,10 +1454,10 @@ cmd_dismiss() {
     [[ -z "$char_id" ]] && die "Index $identifier out of range (1-$count)."
   else
     # Match by title (case-insensitive)
-    char_id=$(echo "$children_json" | jq -r "map(select(.title | ascii_downcase == (\"$identifier\" | ascii_downcase))) | .[0].id // empty")
+    char_id=$(echo "$children_json" | jq -r --arg id "$identifier" 'map(select(.title | ascii_downcase == ($id | ascii_downcase))) | .[0].id // empty')
     if [[ -z "$char_id" ]]; then
       # Match by role label
-      char_id=$(echo "$children_json" | jq -r "map(select(.labels // [] | any(. == \"role:$identifier\"))) | .[0].id // empty")
+      char_id=$(echo "$children_json" | jq -r --arg role "role:$identifier" 'map(select(.labels // [] | any(. == $role))) | .[0].id // empty')
     fi
     [[ -z "$char_id" ]] && die "No member matching '$identifier' in party '$party_name'."
     char_title=$(echo "$children_json" | jq -r "map(select(.id == \"$char_id\")) | .[0].title")
@@ -1485,7 +1485,7 @@ cmd_system() {
     use)      shift; cmd_system_use "$@" ;;
     create)   shift; cmd_system_create "$@" ;;
     validate) shift; cmd_system_validate "$@" ;;
-    *)        cmd_system_show "$subcmd" ;;
+    *)        shift; cmd_system_show "$subcmd" "$@" ;;
   esac
 }
 
@@ -1702,13 +1702,13 @@ cmd_system_validate() {
   # --- Manifest check ---
   if [[ ! -f "$system_dir/system.yaml" ]]; then
     echo "[ERROR] system.yaml not found"
-    exit 1
+    return 1
   fi
 
   # Try to load manifest
   if ! load_manifest "$name" 2>/dev/null; then
     echo "[ERROR] system.yaml failed to parse"
-    exit 1
+    return 1
   fi
 
   local desc
@@ -1838,7 +1838,7 @@ cmd_system_validate() {
   # --- Final verdict ---
   if [[ "$errors" -gt 0 ]]; then
     echo "Result: $errors error(s), $warnings warning(s)"
-    exit 1
+    return 1
   else
     echo "Result: Valid ($warnings warning(s))"
   fi

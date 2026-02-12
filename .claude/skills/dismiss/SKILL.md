@@ -1,7 +1,6 @@
 ---
 name: dismiss
 description: "Remove a character from a party. Usage: /dismiss <name|index|role> [--party name]"
-argument-hint: "<name|index|role> [--party name]"
 ---
 
 # Dismiss Party Member

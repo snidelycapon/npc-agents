@@ -1,7 +1,6 @@
 ---
 name: oracle
 description: "Consult The Oracle — 5 teammates with randomized alignments investigate a question from diverse perspectives."
-argument-hint: "[question]"
 disable-model-invocation: true
 ---
 
